@@ -1,0 +1,6 @@
+[submodule "deps/libraqm"]
+	path = deps/libraqm
+	url = https://github.com/HOST-Oman/libraqm
+[submodule "deps/SheenBidi"]
+	path = deps/SheenBidi
+	url = https://github.com/Tehreer/SheenBidi
