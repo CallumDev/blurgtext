@@ -121,7 +121,7 @@ static void drawString(blurg_t* blurg, blurg_font_t *font, const char *text, int
 
 static blurg_font_t* loadFont(blurg_t *blurg, const char *filename)
 {
-    const char *basePath = SDL_GetBasePath();
+    char *basePath = SDL_GetBasePath();
     char path[1000];
     snprintf(path, 1000, "%s/%s", basePath, filename);
     SDL_free(basePath);
@@ -196,7 +196,7 @@ int main(int argc, char* argv[])
 
     SDL_GL_GetDrawableSize(Window, &winWidth, &winHeight);
     glViewport(0, 0, winWidth, winHeight);
-    glClearColor(0., 0., 0., 1.);
+    glClearColor(0.18, 0.18, 0.18, 1.);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(program);
@@ -212,26 +212,48 @@ int main(int argc, char* argv[])
 
     drawString(blurg, font, "Hello World!\nNewline test", 8, 8);
 
-    blurg_style_span_t spans[2];
+    blurg_style_span_t spans[3];
     memset(spans, 0, sizeof(blurg_style_span_t) * 2);
     spans[0].startIndex = 5;
     spans[0].endIndex = 8;
     spans[0].font = font;
     spans[0].fontSize = 90.0;
     spans[0].color = 0xFFFF0000;
+    spans[0].shadow = BLURG_NO_SHADOW;
+    spans[0].underline = BLURG_UNDERLINED;
+    // change size
     spans[1].startIndex = 14;
     spans[1].endIndex = 16;
     spans[1].font = font;
     spans[1].fontSize = 24.0;
     spans[1].color = BLURG_RGBA(0, 255, 0, 255);
-
+    spans[1].shadow = BLURG_NO_SHADOW;
+    spans[1].underline = BLURG_NO_UNDERLINE;
+    // start underline
+    spans[2].startIndex = 26;
+    spans[2].endIndex = 42;
+    spans[2].font = font;
+    spans[2].fontSize = 20.0;
+    spans[2].color = BLURG_RGBA(255,0,255,255);
+    spans[2].shadow = BLURG_NO_SHADOW;
+    spans[2].underline = (blurg_underline_t) { .color = BLURG_RGBA(128, 128, 128, 255), .enabled = 1, .useColor = 1};
+    //change underline color. add shadow
+    spans[3].startIndex = 43;
+    spans[3].endIndex = 58;
+    spans[3].font = font;
+    spans[3].fontSize = 20.0;
+    spans[3].color = BLURG_RGBA(255,0,0,255);
+    spans[3].shadow = (blurg_shadow_t)  {.color = BLURG_RGBA(32, 0, 0, 255), .pixels = 2 };
+    spans[3].underline = (blurg_underline_t) { .color = BLURG_RGBA(255, 255, 255, 255), .enabled = 1, .useColor = 1};
     blurg_formatted_text_t formatted = {
         .text = "This is an extremely long string that we are going to be wrapping based on a maxWidth (350px) amount. Let's have a look and see how we get on.\nManual line break\nABCDEFGHIJKLMNOPQRSTUVWXYZNOWIKNOWMYABCSNEXTTIMEWON'TYOUSINGWITHME",
         .defaultFont = font,
         .defaultSize = 20.0,
         .defaultColor = 0xFFFFFFFF,
+        .defaultUnderline = BLURG_NO_UNDERLINE,
+        .defaultShadow = BLURG_NO_SHADOW,
         .spans = spans,
-        .spanCount = 2,
+        .spanCount = 4,
         .alignment = blurg_align_left,
         .encoding = blurg_encoding_utf8,
     };
@@ -246,7 +268,9 @@ int main(int argc, char* argv[])
         .text = "H\0E\0L\0L\0O\0,\0 \0W\0I\0D\0E\0!\0\0",
         .defaultFont = font,
         .defaultSize = 20.0,
-        .defaultColor = 0xFFFFFFFF,
+        .defaultColor = BLURG_RGBA(0x64, 0x95, 0xED, 0xFF),
+        .defaultShadow = { .pixels = 1, .color = BLURG_RGBA(0, 0, 0, 255) },
+        .defaultUnderline = BLURG_UNDERLINED,
         .spans = NULL,
         .spanCount = 0,
         .alignment = blurg_align_left,

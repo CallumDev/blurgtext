@@ -38,6 +38,13 @@ typedef struct _blurg_underline {
 #define BLURG_UNDERLINED ((blurg_underline_t){ .color = 0, .useColor = 0, .enabled = 1 })
 #define BLURG_NO_UNDERLINE ((blurg_underline_t){ .enabled = 0 })
 
+typedef struct _blurg_shadow {
+    int pixels;
+    blurg_color_t color;
+} blurg_shadow_t;
+
+#define BLURG_NO_SHADOW ((blurg_shadow_t) { .color = 0, .pixels = 0 })
+
 typedef struct _blurg_texture {
     void* userdata;
 } blurg_texture_t;
@@ -61,6 +68,8 @@ typedef struct _blurg_style_span {
     blurg_font_t *font;
     float fontSize;
     blurg_color_t color;
+    blurg_underline_t underline;
+    blurg_shadow_t shadow;
 } blurg_style_span_t;
 
 typedef enum {
@@ -84,6 +93,8 @@ typedef struct _blurg_formatted_text {
   float defaultSize;
   blurg_font_t* defaultFont;
   blurg_color_t defaultColor;
+  blurg_underline_t defaultUnderline;
+  blurg_shadow_t defaultShadow;
 } blurg_formatted_text_t;
 
 typedef void (*blurg_texture_allocate)(blurg_texture_t *texture, int width, int height);

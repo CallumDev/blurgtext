@@ -46,7 +46,7 @@ static void new_texture(blurg_t *blurg)
     blurg->textureUpdate(tex, &white, 0, 0, 1, 1);
     blurg->packed.currentX = 2;
     blurg->packed.currentY = 0;
-    blurg->packed.lineMax = 0;
+    blurg->packed.lineMax = 2;
     blurg->packed.pages[blurg->packed.curTex++] = tex;
 }
 
@@ -77,16 +77,19 @@ void glyphatlas_get(blurg_t *blurg, blurg_font_t *font, uint32_t index, blurg_gl
     FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
     FT_Bitmap rendered = face->glyph->bitmap;
     // find place to pack rendered glyph
-    if(blurg->packed.currentX + rendered.width > BLURG_TEXTURE_SIZE) {
+    int packW = rendered.width + 1; // padding
+    int packH = rendered.rows + 1;
+
+    if(blurg->packed.currentX + packW > BLURG_TEXTURE_SIZE) {
         blurg->packed.currentX = 0;
         blurg->packed.currentY += blurg->packed.lineMax;
         blurg->packed.lineMax = 0;
     }
-    if(blurg->packed.currentY + rendered.rows > BLURG_TEXTURE_SIZE) {
+    if(blurg->packed.currentY + packH > BLURG_TEXTURE_SIZE) {
         new_texture(blurg);
     }
-    if(rendered.rows > blurg->packed.lineMax)
-        blurg->packed.lineMax = rendered.rows;
+    if(packH > blurg->packed.lineMax)
+        blurg->packed.lineMax = packH;
     // create and upload glyph data
     uint32_t* buf = malloc(rendered.width * rendered.rows * sizeof(uint32_t));
     for(int i = 0; i < rendered.width * rendered.rows; i++) {
@@ -111,6 +114,6 @@ void glyphatlas_get(blurg_t *blurg, blurg_font_t *font, uint32_t index, blurg_gl
         .offsetTop = face->glyph->bitmap_top
     };
     // update packing, set hashmap
-    blurg->packed.currentX += rendered.width;
+    blurg->packed.currentX += packW;
     hashmap_set(blurg->glyphMap, &(struct glyph_entry){ .key = key, .glyph = *glyph });
 }

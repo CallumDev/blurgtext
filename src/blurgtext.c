@@ -4,6 +4,7 @@
 #include <linebreak.h>
 #include "list.h"
 #include <wchar.h>
+#include <math.h>
 
 DEFINE_LIST(blurg_rect_t);
 IMPLEMENT_LIST(blurg_rect_t);
@@ -83,33 +84,189 @@ static void blurg_get_lines(const void *text, int* textLen, blurg_encoding_t enc
     }
 }
 
+// style accessors
 #define IDX_FONT(i) ((!attributes || attributes[(i)] == -1) ? text->defaultFont : text->spans[attributes[(i)]].font)
 #define IDX_SIZE(i) ((!attributes || attributes[(i)] == -1) ? text->defaultSize : text->spans[attributes[(i)]].fontSize)
 #define IDX_COLOR(i) ((!attributes || attributes[(i)] == -1) ? text->defaultColor : text->spans[attributes[(i)]].color)
+#define IDX_UNDERLINE(i) ((!attributes || attributes[(i)] == -1) ? text->defaultUnderline : text->spans[attributes[(i)]].underline)
+#define IDX_SHADOW(i) ((!attributes || attributes[(i)] == -1) ? text->defaultShadow : text->spans[attributes[(i)]].shadow)
 
-static void raqm_to_rects(blurg_t *blurg, raqm_t *rq, list_blurg_rect_t *rb, float *x, float *y, size_t maxGlyph, blurg_formatted_text_t *text, int* attributes)
+typedef struct {
+    int active;
+    blurg_color_t color;
+    float xStart;
+    float pos;
+    int offset;
+} active_underline;
+
+static void add_underline(active_underline ul, float xEnd, list_blurg_rect_t *rb, float y)
+{
+    list_blurg_rect_t_add(rb, (blurg_rect_t){
+        .texture = rb->data[rb->count - 1].texture,
+        .u0 = 0.5 / BLURG_TEXTURE_SIZE, //sample centre of pixel, works better.
+        .u1 = 0.5 / BLURG_TEXTURE_SIZE,
+        .v0 = 0.5 / BLURG_TEXTURE_SIZE,
+        .v1 = 0.5 / BLURG_TEXTURE_SIZE,
+        .x = (int)(ul.xStart + ul.offset),
+        .y = (int)(ul.pos + y + ul.offset),
+        .width = (int)(xEnd - ul.xStart),
+        .height = 1,
+        .color = ul.color,
+    });
+}
+
+static void raqm_to_rects(
+    blurg_t *blurg, 
+    raqm_t *rq, 
+    list_blurg_rect_t *rb, 
+    float *x, 
+    float *y, 
+    size_t maxGlyph, 
+    blurg_formatted_text_t *text, 
+    int* attributes,
+    int hasShadow,
+    int hasUnderline)
 {
     size_t count;
     raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
-    list_blurg_rect_t_ensure_size(rb, rb->count + count);
+    list_blurg_rect_t_ensure_size(rb, rb->count + count); //optimize to save reallocs
+    active_underline ul = { .active = 0 };
+    // draw shadows
+    if(hasShadow) {
+        float shadowX = *x;
+        float shadowY = *y;
+        for(int i = 0; i < count && i < maxGlyph; i++) {
+            blurg_shadow_t shadow = IDX_SHADOW(glyphs[i].cluster);
+            if(!shadow.pixels) {
+                if(ul.active) {
+                    add_underline(ul, shadowX, rb, shadowY);
+                    ul.active = 0;
+                }
+                shadowX += glyphs[i].x_advance / 64.0;
+                shadowY += glyphs[i].y_advance / 64.0;
+                continue;
+            }
+            //glyph shadow
+            blurg_glyph vis;
+            blurg_font_t *font = blurg_from_freetype(glyphs[i].ftface);
+            glyphatlas_get(blurg, font, glyphs[i].index, &vis);
+            list_blurg_rect_t_add(rb, (blurg_rect_t) {
+                .texture = blurg->packed.pages[vis.texture],
+                .u0 = vis.srcX / (float)BLURG_TEXTURE_SIZE,
+                .v0 = vis.srcY / (float)BLURG_TEXTURE_SIZE,
+                .u1 = (vis.srcX + vis.srcW) / (float)BLURG_TEXTURE_SIZE,
+                .v1 = (vis.srcY + vis.srcH) / (float)BLURG_TEXTURE_SIZE,
+                .x = shadow.pixels + (int)(shadowX + (glyphs[i].x_offset / 64.0) + vis.offsetLeft),
+                .y = shadow.pixels + (int)(shadowY + (glyphs[i].y_offset / 64.0) - vis.offsetTop),
+                .width = vis.srcW,
+                .height = vis.srcH,
+                .color = shadow.color, 
+            });
+            if(!hasUnderline)
+                continue;
+            //underline shadow
+            blurg_underline_t underline = IDX_UNDERLINE(glyphs[i].cluster);
+            float upos;
+            if(underline.enabled) {
+                float sz = (font->setSize / 64.0);
+                upos = (font->face->underline_position / (64.0 * 64.0)) * sz;
+                upos = -roundf(upos);
+            }
+            if(!ul.active && underline.enabled) {
+                ul.active = 1;
+                ul.xStart = shadowX;
+                ul.color = shadow.color;
+                ul.offset = shadow.pixels;
+            }
+            else if(ul.active && !underline.enabled) {
+                add_underline(ul, shadowX, rb, shadowY);
+                ul.active = 0;
+            }
+            else if (ul.active && underline.enabled && (
+                shadow.color != ul.color ||
+                shadow.pixels != ul.offset ||
+                upos != ul.pos)) {
+                add_underline(ul, shadowX, rb, shadowY);
+                ul.xStart = shadowX;
+                ul.color = shadow.color;
+                ul.offset = shadow.pixels;
+            }
+            shadowX += glyphs[i].x_advance / 64.0;
+            shadowY += glyphs[i].y_advance / 64.0;
+        }
+        if(ul.active) {
+            add_underline(ul, shadowX, rb, *y);
+        }
+        ul.active = 0;
+    }
+    
+    // draw underlines (not shadowed)
+    if(hasUnderline) {
+        float underlineX = *x;
+        float underlineY = *y;
+        for(int i = 0; i < count && i < maxGlyph; i++) {
+            blurg_underline_t underline = IDX_UNDERLINE(glyphs[i].cluster);
+            blurg_font_t *font;
+            uint32_t ucolor;
+            float upos;
+            if(underline.enabled) {
+                ucolor = underline.useColor ? underline.color : IDX_COLOR(glyphs[i].cluster);
+                font = blurg_from_freetype(glyphs[i].ftface);
+                float sz = (font->setSize / 64.0);
+                upos = (font->face->underline_position / (64.0 * 64.0)) * sz;
+                upos = -roundf(upos);
+            }
+            if(!ul.active && underline.enabled) {
+                ul.active = 1;
+                ul.xStart = underlineX;
+                ul.color = ucolor;
+                ul.offset = 0;
+                ul.pos = upos;
+            }
+            else if(ul.active && !underline.enabled) {
+                add_underline(ul, underlineX, rb, underlineY);
+                ul.active = 0;
+            }
+            else if (ul.active && underline.enabled && (
+                ucolor != ul.color ||
+                upos != ul.pos)) {
+                add_underline(ul, underlineX, rb, underlineY);
+                ul.xStart = *x;
+                ul.color = ucolor;
+                ul.offset = 0;
+                ul.pos = upos;
+            }
+            underlineX += glyphs[i].x_advance / 64.0;
+            underlineY += glyphs[i].y_advance / 64.0;
+        }
+        if(ul.active) {
+            add_underline(ul, underlineX, rb, underlineY);
+        }
+    }
+
+    // finally, draw colour glyphs on top
+    
     for(int i = 0; i < count && i < maxGlyph; i++) {
+
         blurg_glyph vis;
         blurg_font_t *font = blurg_from_freetype(glyphs[i].ftface);
         glyphatlas_get(blurg, font, glyphs[i].index, &vis);
-        blurg_rect_t *r = &rb->data[rb->count++];
-        r->texture = blurg->packed.pages[vis.texture];
-        r->u0 = vis.srcX / (float)BLURG_TEXTURE_SIZE;
-        r->v0 = vis.srcY / (float)BLURG_TEXTURE_SIZE;
-        r->u1 = (vis.srcX + vis.srcW) / (float)BLURG_TEXTURE_SIZE;
-        r->v1 = (vis.srcY + vis.srcH) / (float)BLURG_TEXTURE_SIZE;
-        r->x = (int)(*x + (glyphs[i].x_offset / 64.0) + vis.offsetLeft);
-        r->y = (int)(*y + (glyphs[i].y_offset / 64.0) - vis.offsetTop);
-        r->width = vis.srcW;
-        r->height = vis.srcH;
-        r->color = IDX_COLOR(glyphs[i].cluster);
+        list_blurg_rect_t_add(rb, (blurg_rect_t) {
+            .texture = blurg->packed.pages[vis.texture],
+            .u0 = vis.srcX / (float)BLURG_TEXTURE_SIZE,
+            .v0 = vis.srcY / (float)BLURG_TEXTURE_SIZE,
+            .u1 = (vis.srcX + vis.srcW) / (float)BLURG_TEXTURE_SIZE,
+            .v1 = (vis.srcY + vis.srcH) / (float)BLURG_TEXTURE_SIZE,
+            .x = (int)(*x + (glyphs[i].x_offset / 64.0) + vis.offsetLeft),
+            .y = (int)(*y + (glyphs[i].y_offset / 64.0) - vis.offsetTop),
+            .width = vis.srcW,
+            .height = vis.srcH,
+            .color = IDX_COLOR(glyphs[i].cluster), 
+        });
         *x += glyphs[i].x_advance / 64.0;
         *y += glyphs[i].y_advance / 64.0;
-    }   
+    }
+    
 }
 
 // returns the length of text shaped/turned into rects for current maxWidth
@@ -122,8 +279,18 @@ static int blurg_shape_multiple(blurg_t *blurg, const void *str, char *breaks, i
     else
         raqm_set_text_utf8(rq, (const char*)str, len);
     raqm_set_par_direction(rq, RAQM_DIRECTION_DEFAULT);
+    int hasShadows = len + 1;
+    int hasUnderlines = len + 1;
     for(int i = 0; i < len; i++) {
         blurg_font_t *fontAtIndex = IDX_FONT(i);
+        // optimisation. check if there are any shadow/underline attributes
+        // in the range during first loop. saves loops later 
+        if((hasShadows > len) && IDX_SHADOW(i).pixels != 0) {
+            hasShadows = i;
+        }
+        if((hasUnderlines > len) && IDX_UNDERLINE(i).enabled != 0) {
+            hasUnderlines = i;
+        }
         font_use_size(fontAtIndex, size);
         raqm_set_freetype_face_range(rq, fontAtIndex->face, i, 1);
     }
@@ -186,7 +353,7 @@ static int blurg_shape_multiple(blurg_t *blurg, const void *str, char *breaks, i
             }
         }
     }
-    raqm_to_rects(blurg, rq, rb, x, y, count, text, attributes);
+    raqm_to_rects(blurg, rq, rb, x, y, count, text, attributes, hasShadows < charCount, hasUnderlines < charCount);
     raqm_destroy(rq);
     return charCount;
 }
@@ -243,11 +410,13 @@ static void blurg_wrap_shape_line(
     float x = 0;
     float y = 0;
 
+    // accessors for attribute and text arrays
     #define TEXT_OFFSET(x) (text->encoding == blurg_encoding_utf16 ? (const void*)(\
         &((const utf16_t*)(text->text))[(x)] \
     ) : (const void*) (\
         &((const char*)(text->text))[(x)] \
     ))
+    #define ATTRIBUTE_OFFSET(x) (attributes ? &attributes[(x)] : NULL)
 
     for(int i = 0; i < count; i++) {
         blurg_font_t *fontAtIndex = IDX_FONT(start + i);
@@ -255,7 +424,6 @@ static void blurg_wrap_shape_line(
         // size change, we need to shape text
         if(currentSize != sizeAtIndex) {
             if(i - last > 0) {
-                int* a = attributes ? &attributes[start + last] : NULL;
                 int shapeCount = i - last;
                 int actualCount = blurg_shape_multiple(
                     blurg, 
@@ -263,11 +431,12 @@ static void blurg_wrap_shape_line(
                     &breaks[start + last],
                     i - last, 
                     currentSize, 
-                    a, 
+                    ATTRIBUTE_OFFSET(start + last), 
                     text, 
                     &shapeBuffer, &x, &y, maxWidth);
                 if(actualCount != shapeCount) {
                     split_line(lines, lineIndex, last + actualCount);
+                    // early exit
                     goto finish;
                 }
                 last = i;
@@ -283,14 +452,23 @@ static void blurg_wrap_shape_line(
     }
 
     if(count - last > 0) {
-        int* a = attributes ? &attributes[start + last] : NULL;
         int shapeCount = count - last;
-        int actualCount = blurg_shape_multiple(blurg, TEXT_OFFSET(start + last), &breaks[start + last], count - last, currentSize, a, text, &shapeBuffer, &x, &y, maxWidth);
+        int actualCount = blurg_shape_multiple(
+            blurg, 
+            TEXT_OFFSET(start + last), 
+            &breaks[start + last], 
+            count - last, 
+            currentSize, 
+            ATTRIBUTE_OFFSET(start + last), 
+            text, 
+            &shapeBuffer, &x, &y, maxWidth);
         if(actualCount != shapeCount) {
             split_line(lines, lineIndex, last + actualCount);
         }
     }
     #undef TEXT_OFFSET
+    #undef ATTRIBUTE_OFFSET
+
     finish:
     // apply ascender for line
     for(int i = 0; i < shapeBuffer.count; i++) {
