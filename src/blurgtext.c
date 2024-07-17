@@ -81,7 +81,11 @@ static void blurg_get_lines(const void *text, int* textLen, blurg_encoding_t enc
     }
 }
 
-static void raqm_to_rects(blurg_t *blurg, raqm_t *rq, list_blurg_rect_t *rb, float *x, float *y, size_t maxGlyph)
+#define IDX_FONT(i) ((!attributes || attributes[(i)] == -1) ? text->defaultFont : text->spans[attributes[(i)]].font)
+#define IDX_SIZE(i) ((!attributes || attributes[(i)] == -1) ? text->defaultSize : text->spans[attributes[(i)]].fontSize)
+#define IDX_COLOR(i) ((!attributes || attributes[(i)] == -1) ? text->defaultColor : text->spans[attributes[(i)]].color)
+
+static void raqm_to_rects(blurg_t *blurg, raqm_t *rq, list_blurg_rect_t *rb, float *x, float *y, size_t maxGlyph, blurg_formatted_text_t *text, int* attributes)
 {
     size_t count;
     raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
@@ -100,13 +104,11 @@ static void raqm_to_rects(blurg_t *blurg, raqm_t *rq, list_blurg_rect_t *rb, flo
         r->y = (int)(*y + (glyphs[i].y_offset / 64.0) - vis.offsetTop);
         r->width = vis.srcW;
         r->height = vis.srcH;
+        r->color = IDX_COLOR(glyphs[i].cluster);
         *x += glyphs[i].x_advance / 64.0;
         *y += glyphs[i].y_advance / 64.0;
     }   
 }
-
-#define IDX_FONT(i) ((!attributes || attributes[(i)] == -1) ? text->defaultFont : text->spans[attributes[(i)]].font)
-#define IDX_SIZE(i) ((!attributes || attributes[(i)] == -1) ? text->defaultSize : text->spans[attributes[(i)]].fontSize)
 
 // returns the length of text shaped/turned into rects for current maxWidth
 static int blurg_shape_multiple(blurg_t *blurg, const void *str, char *breaks, int len, float size,
@@ -182,7 +184,7 @@ static int blurg_shape_multiple(blurg_t *blurg, const void *str, char *breaks, i
             }
         }
     }
-    raqm_to_rects(blurg, rq, rb, x, y, count);
+    raqm_to_rects(blurg, rq, rb, x, y, count, text, attributes);
     return charCount;
 }
 
@@ -380,11 +382,12 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
 }
 
 
-BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, const char *text, int* rectCount)
+BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int* rectCount)
 {
     blurg_formatted_text_t formatted = {
         .defaultFont = font,
         .defaultSize = size,
+        .defaultColor = color,
         .encoding = blurg_encoding_utf8,
         .spanCount = 0,
         .spans = NULL,

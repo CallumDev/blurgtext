@@ -40,10 +40,11 @@ typedef struct vertex {
     float y;
     float u;
     float v;
+    uint32_t color;
 } vertex_t;
 
-const char *vertex_shader = "#version 140\nin vec2 pos; in vec2 uv; out vec2 texcoord; uniform mat4 matrix; void main() { texcoord = uv; gl_Position = matrix * vec4(pos, 0.0, 1.0); }";
-const char *fragment_shader = "#version 140\nin vec2 texcoord; uniform sampler2D tex; out vec4 col; void main() { col = texture(tex, texcoord); }";
+const char *vertex_shader = "#version 140\nin vec2 pos; in vec2 uv; in vec4 tint; out vec4 d; out vec2 texcoord; uniform mat4 matrix;  void main() { texcoord = uv; d = tint; gl_Position = matrix * vec4(pos, 0.0, 1.0); }";
+const char *fragment_shader = "#version 140\nin vec2 texcoord; in vec4 d; uniform sampler2D tex; out vec4 col; void main() { col = d * texture(tex, texcoord); }";
 
 static void printShaderInfoLog(uint32_t handle, const char *type)
 {
@@ -72,24 +73,28 @@ static void drawRects(blurg_rect_t *rects, int count, int x, int y)
             .y = y + rects[i].y,
             .u = rects[i].u0,
             .v = rects[i].v0,
+            .color = rects[i].color
         };
         vertex_t top_right = {
             .x = x + rects[i].x + rects[i].width,
             .y = y + rects[i].y,
             .u = rects[i].u1,
-            .v = rects[i].v0
+            .v = rects[i].v0,
+            .color = rects[i].color
         };
         vertex_t bottom_left = {
             .x = x + rects[i].x,
             .y = y + rects[i].y + rects[i].height,
             .u = rects[i].u0,
-            .v = rects[i].v1
+            .v = rects[i].v1,
+            .color = rects[i].color
         };
         vertex_t bottom_right = {
             .x = x + rects[i].x + rects[i].width,
             .y = y + rects[i].y + rects[i].height,
             .u = rects[i].u1,
-            .v = rects[i].v1
+            .v = rects[i].v1,
+            .color = rects[i].color
         };
         *vptr++ = top_left;
         *vptr++ = top_right;
@@ -107,7 +112,7 @@ static void drawRects(blurg_rect_t *rects, int count, int x, int y)
 static void drawString(blurg_t* blurg, blurg_font_t *font, const char *text, int x, int y)
 {
     int count;
-    blurg_rect_t *rects = blurg_build_string(blurg, font, 36.0, text, &count);
+    blurg_rect_t *rects = blurg_build_string(blurg, font, 36.0, 0xFF0000FF, text, &count);
     drawRects(rects, count, x, y);
     blurg_free_rects(rects);
 }
@@ -137,8 +142,10 @@ int main(int argc, char* argv[])
     glBindVertexArray(vao);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
     glVertexAttribPointer(0, 2, GL_FLOAT, 0, sizeof(vertex_t), (void*)0);
     glVertexAttribPointer(1, 2, GL_FLOAT, 0, sizeof(vertex_t), (void*)(2 * sizeof(float)));
+    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, 1, sizeof(vertex_t),(void*)(4 * sizeof(float)));
 
     uint32_t vtxsh = glCreateShader(GL_VERTEX_SHADER);
     int shlen = strlen(vertex_shader);
@@ -155,6 +162,7 @@ int main(int argc, char* argv[])
     glAttachShader(program, fgsh);
     glBindAttribLocation(program, 0, "pos");
     glBindAttribLocation(program, 1, "uv");
+    glBindAttribLocation(program, 2, "tint");
     glLinkProgram(program);
     int matLocation = glGetUniformLocation(program, "matrix");
 
@@ -207,15 +215,18 @@ int main(int argc, char* argv[])
     spans[0].endIndex = 8;
     spans[0].font = font;
     spans[0].fontSize = 90.0;
+    spans[0].color = 0xFFFF0000;
     spans[1].startIndex = 14;
     spans[1].endIndex = 16;
     spans[1].font = font;
     spans[1].fontSize = 24.0;
+    spans[1].color = BLURG_RGBA(0, 255, 0, 255);
 
     blurg_formatted_text_t formatted = {
         .text = "This is an extremely long string that we are going to be wrapping based on a maxWidth (350px) amount. Let's have a look and see how we get on.\nManual line break\nABCDEFGHIJKLMNOPQRSTUVWXYZNOWIKNOWMYABCSNEXTTIMEWON'TYOUSINGWITHME",
         .defaultFont = font,
         .defaultSize = 20.0,
+        .defaultColor = 0xFFFFFFFF,
         .spans = spans,
         .spanCount = 2,
         .alignment = blurg_align_left,
@@ -232,6 +243,7 @@ int main(int argc, char* argv[])
         .text = "H\0E\0L\0L\0O\0,\0 \0W\0I\0D\0E\0!\0\0",
         .defaultFont = font,
         .defaultSize = 20.0,
+        .defaultColor = 0xFFFFFFFF,
         .spans = NULL,
         .spanCount = 0,
         .alignment = blurg_align_left,

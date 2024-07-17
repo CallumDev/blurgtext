@@ -19,6 +19,16 @@ extern "C" {
 typedef struct _blurg blurg_t;
 typedef struct _blurg_font blurg_font_t;
 
+// Usually a 32-bit RGBA color, representing 0xRRGGBBAA.
+// This is not modified by blurgtext.
+typedef uint32_t blurg_color_t;
+#define BLURG_RGBA(r,g,b,a) (\
+    (uint32_t)((a) << 24) | \
+    (uint32_t)((b) << 16) | \
+    (uint32_t)((g) << 8) | \
+    (uint32_t)((r)) \
+)
+
 typedef struct _blurg_texture {
     void* userdata;
 } blurg_texture_t;
@@ -33,6 +43,7 @@ typedef struct _blurg_rect {
     float v0;
     float u1;
     float v1;
+    blurg_color_t color;
 } blurg_rect_t;
 
 typedef struct _blurg_style_span {
@@ -40,6 +51,7 @@ typedef struct _blurg_style_span {
     int endIndex;
     blurg_font_t *font;
     float fontSize;
+    blurg_color_t color;
 } blurg_style_span_t;
 
 typedef enum {
@@ -62,6 +74,7 @@ typedef struct _blurg_formatted_text {
   int spanCount;
   float defaultSize;
   blurg_font_t* defaultFont;
+  blurg_color_t defaultColor;
 } blurg_formatted_text_t;
 
 typedef void (*blurg_texture_allocate)(blurg_texture_t *texture, int width, int height);
@@ -71,7 +84,7 @@ BLURGAPI blurg_t *blurg_create(blurg_texture_allocate textureAllocate, blurg_tex
 
 BLURGAPI blurg_font_t *blurg_font_create(blurg_t *blurg, const char *filename);
 
-BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, const char *text, int* rectCount);
+BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int* rectCount);
 BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *text, float maxWidth, int *rectCount);
 
 BLURGAPI void blurg_free_rects(blurg_rect_t *rects);
