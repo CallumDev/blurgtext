@@ -45,8 +45,8 @@ typedef struct vertex {
     uint32_t color;
 } vertex_t;
 
-const char *vertex_shader = "#version 140\nin vec2 pos; in vec2 uv; in vec4 tint; out vec4 d; out vec2 texcoord; uniform mat4 matrix;  void main() { texcoord = uv; d = tint; gl_Position = matrix * vec4(pos, 0.0, 1.0); }";
-const char *fragment_shader = "#version 140\nin vec2 texcoord; in vec4 d; uniform sampler2D tex; out vec4 col; void main() { col = d * texture(tex, texcoord); }";
+const char *vertex_shader = "in vec2 pos; in vec2 uv; in vec4 tint; out vec4 d; out vec2 texcoord; uniform mat4 matrix;  void main() { texcoord = uv; d = tint; gl_Position = matrix * vec4(pos, 0.0, 1.0); }";
+const char *fragment_shader = "in vec2 texcoord; in vec4 d; uniform sampler2D tex; out vec4 col; void main() { col = d * texture(tex, texcoord); }";
 
 static void printShaderInfoLog(uint32_t handle, const char *type)
 {
@@ -128,10 +128,44 @@ static blurg_font_t* loadFont(blurg_t *blurg, const char *filename)
     return blurg_font_create(blurg, path);
 }
 
+static void shaderSource(uint32_t id, const char *a, const char *b)
+{
+    const char *sources[2] = { a, b };
+    int lens[2] = { strlen(a), strlen(b) };
+    glShaderSource(id, 2, sources, lens);
+}
+
 int main(int argc, char* argv[])
 {
-    SDL_Window *Window = SDL_CreateWindow("OpenGL Test", 0, 0, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    {
+        printf("SDL Error: %s\n", SDL_GetError());
+        return -1;
+    }
+    #ifdef __APPLE__
+    // GL 3.3 core context
+    const char* glsl_version = "#version 140\n";
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    #else
+    // GL 3.0 + GLSL 130
+    const char* glsl_version = "#version 130\n";
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    #endif
+
+    // Create window with graphics context
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
+    SDL_Window *Window = SDL_CreateWindow("OpenGL Test", 0, 0, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     SDL_GLContext Context = SDL_GL_CreateContext(Window);
+    SDL_GL_MakeCurrent(Window, Context);
+    SDL_GL_SetSwapInterval(1); // Enable vsync
     gladLoadGLLoader(SDL_GL_GetProcAddress);
     
     // Generate string
@@ -151,11 +185,9 @@ int main(int argc, char* argv[])
     glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, 1, sizeof(vertex_t),(void*)(4 * sizeof(float)));
 
     uint32_t vtxsh = glCreateShader(GL_VERTEX_SHADER);
-    int shlen = strlen(vertex_shader);
-    glShaderSource(vtxsh, 1, &vertex_shader, &shlen);
+    shaderSource(vtxsh, glsl_version, vertex_shader);
     uint32_t fgsh = glCreateShader(GL_FRAGMENT_SHADER);
-    shlen = strlen(fragment_shader);
-    glShaderSource(fgsh, 1, &fragment_shader, &shlen);
+    shaderSource(fgsh, glsl_version, fragment_shader);
     glCompileShader(vtxsh);
     printShaderInfoLog(vtxsh, "vertex");
     glCompileShader(fgsh);
@@ -285,4 +317,5 @@ int main(int argc, char* argv[])
   }
   blurg_destroy(blurg);
   SDL_Quit();
+  return 0;
 }
