@@ -1,11 +1,7 @@
 #include "blurgtext_internal.h"
-#include <hb.h>
-#include <hb-ft.h>
 #include <string.h>
 
 #define DPI 72
-
-static hb_user_data_key_t blurg_key;
 
 static uint32_t fnv1a_str(char *str)
 {
@@ -33,11 +29,16 @@ static uint32_t fnv1a_combined(uint32_t faceHash, uint32_t size)
     return hval;
 }
 
+// Fonts are freed when FT_Done_Library is called in the main destroy
+static void font_finalizer(void* object)
+{
+    FT_Face face = (FT_Face)object;
+    free(face->generic.data);
+}
+
 blurg_font_t *blurg_from_freetype(FT_Face face)
 {
-    hb_face_t* hb = hb_ft_face_create_cached(face);
-    void* d = hb_face_get_user_data(hb, &blurg_key);
-    if(!d) {
+    if(face->generic.finalizer != font_finalizer) {
         blurg_font_t *fnt = malloc(sizeof(blurg_font_t));
         memset(fnt, 0, sizeof(blurg_font_t));
         char hashbuffer[2048];
@@ -49,10 +50,11 @@ blurg_font_t *blurg_from_freetype(FT_Face face)
         );
         fnt->faceHash = fnv1a_str(hashbuffer);
         fnt->face = face;
-        hb_face_set_user_data(hb, &blurg_key, fnt, NULL, true);
+        face->generic.data = fnt;
+        face->generic.finalizer = font_finalizer;
         return fnt;
     }
-    return (blurg_font_t*)d;
+    return (blurg_font_t*)face->generic.data;
 }
 
 void font_use_size(blurg_font_t *fnt, float size)

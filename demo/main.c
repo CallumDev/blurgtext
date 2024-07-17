@@ -18,6 +18,8 @@ static void ortho(mat4* mat, float left, float right, float bottom, float top)
     mat->M[3][3] = 1.;
 }
 
+// This leaks memory. In a real application you would free all your textures when 
+// destroying your blurg_t, or make userdata be an array index etc.
 static void tallocate(blurg_texture_t *texture, int width, int height)
 {
     uint32_t tex;
@@ -122,6 +124,7 @@ static blurg_font_t* loadFont(blurg_t *blurg, const char *filename)
     const char *basePath = SDL_GetBasePath();
     char path[1000];
     snprintf(path, 1000, "%s/%s", basePath, filename);
+    SDL_free(basePath);
     return blurg_font_create(blurg, path);
 }
 
@@ -256,4 +259,6 @@ int main(int argc, char* argv[])
 
     SDL_GL_SwapWindow(Window);
   }
+  blurg_destroy(blurg);
+  SDL_Quit();
 }

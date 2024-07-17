@@ -40,6 +40,8 @@ BLURGAPI blurg_t *blurg_create(blurg_texture_allocate textureAllocate, blurg_tex
 BLURGAPI void blurg_destroy(blurg_t *blurg)
 {
     glyphatlas_destroy(blurg);
+    FT_Done_Library(blurg->library);
+    free(blurg);
 }
 
 static size_t utf16_strlen(utf16_t *text)
@@ -185,6 +187,7 @@ static int blurg_shape_multiple(blurg_t *blurg, const void *str, char *breaks, i
         }
     }
     raqm_to_rects(blurg, rq, rb, x, y, count, text, attributes);
+    raqm_destroy(rq);
     return charCount;
 }
 

@@ -70,5 +70,7 @@ void structname ## _free(structname *list) \
 }
 
 #define DEFINE_LIST(type) LIST_DEF(list_ ## type, type)
+#define DEFINE_PTR_LIST(type) LIST_DEF(list_p_ ## type, type*)
 #define IMPLEMENT_LIST(type) LIST_IMPL(list_ ## type, type)
+#define IMPLEMENT_PTR_LIST(type) LIST_IMPL(list_p_ ## type, type*)
 #endif

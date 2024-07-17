@@ -29,6 +29,15 @@ typedef uint32_t blurg_color_t;
     (uint32_t)((r)) \
 )
 
+typedef struct _blurg_underline {
+    blurg_color_t color;
+    char useColor;
+    char enabled;
+} blurg_underline_t;
+
+#define BLURG_UNDERLINED ((blurg_underline_t){ .color = 0, .useColor = 0, .enabled = 1 })
+#define BLURG_NO_UNDERLINE ((blurg_underline_t){ .enabled = 0 })
+
 typedef struct _blurg_texture {
     void* userdata;
 } blurg_texture_t;
