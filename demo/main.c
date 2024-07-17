@@ -62,35 +62,32 @@ static void printShaderInfoLog(uint32_t handle, const char *type)
 
 static uint32_t vbo;
 
-static void drawString(blurg_t* blurg, blurg_font_t *font, const char *text)
+static void drawRects(blurg_rect_t *rects, int count, int x, int y)
 {
-    int count;
-    blurg_rect_t *rects = blurg_buildstring(blurg, font, 36.0, text, &count);
-
     vertex_t *vertices = malloc(sizeof(vertex_t) * count * 6);
     vertex_t *vptr = vertices;
     for(int i = 0; i < count; i++) {
         vertex_t top_left = {
-            .x = 8 + rects[i].x,
-            .y = 8 + rects[i].y,
+            .x = x + rects[i].x,
+            .y = y + rects[i].y,
             .u = rects[i].u0,
             .v = rects[i].v0,
         };
         vertex_t top_right = {
-            .x = 8 + rects[i].x + rects[i].width,
-            .y = 8 + rects[i].y,
+            .x = x + rects[i].x + rects[i].width,
+            .y = y + rects[i].y,
             .u = rects[i].u1,
             .v = rects[i].v0
         };
         vertex_t bottom_left = {
-            .x = 8 + rects[i].x,
-            .y = 8 + rects[i].y + rects[i].height,
+            .x = x + rects[i].x,
+            .y = y + rects[i].y + rects[i].height,
             .u = rects[i].u0,
             .v = rects[i].v1
         };
         vertex_t bottom_right = {
-            .x = 8 + rects[i].x + rects[i].width,
-            .y = 8 + rects[i].y + rects[i].height,
+            .x = x + rects[i].x + rects[i].width,
+            .y = y + rects[i].y + rects[i].height,
             .u = rects[i].u1,
             .v = rects[i].v1
         };
@@ -105,22 +102,33 @@ static void drawString(blurg_t* blurg, blurg_font_t *font, const char *text)
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_t) * count * 6, vertices, GL_STATIC_DRAW);
     glDrawArrays(GL_TRIANGLES, 0, count * 6);
     free(vertices);
-
 }
+
+static void drawString(blurg_t* blurg, blurg_font_t *font, const char *text, int x, int y)
+{
+    int count;
+    blurg_rect_t *rects = blurg_build_string(blurg, font, 36.0, text, &count);
+    drawRects(rects, count, x, y);
+    blurg_free_rects(rects);
+}
+
+static blurg_font_t* loadFont(blurg_t *blurg, const char *filename)
+{
+    const char *basePath = SDL_GetBasePath();
+    char path[1000];
+    snprintf(path, 1000, "%s/%s", basePath, filename);
+    return blurg_font_create(blurg, path);
+}
+
 int main(int argc, char* argv[])
 {
-    if(argc < 2) {
-        printf("Usage: %s font.ttf\n", argv[0]);
-        return 0;
-    }
-
     SDL_Window *Window = SDL_CreateWindow("OpenGL Test", 0, 0, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     SDL_GLContext Context = SDL_GL_CreateContext(Window);
     gladLoadGLLoader(SDL_GL_GetProcAddress);
-
+    
     // Generate string
     blurg_t *blurg = blurg_create(tallocate, tupdate);
-    blurg_font_t *font = blurg_font_create(blurg, argv[1]);
+    blurg_font_t *font = loadFont(blurg, "Roboto-Regular.ttf");
 
     uint32_t vao;
     glGenVertexArrays(1, &vao);
@@ -190,7 +198,34 @@ int main(int argc, char* argv[])
     glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
-    drawString(blurg, font, "Hello World!\nNewline test");
+
+    drawString(blurg, font, "Hello World!\nNewline test", 8, 8);
+
+    blurg_style_span_t spans[2];
+    memset(spans, 0, sizeof(blurg_style_span_t) * 2);
+    spans[0].startIndex = 5;
+    spans[0].endIndex = 8;
+    spans[0].font = font;
+    spans[0].fontSize = 90.0;
+    spans[1].startIndex = 14;
+    spans[1].endIndex = 16;
+    spans[1].font = font;
+    spans[1].fontSize = 24.0;
+
+    blurg_formatted_text_t formatted = {
+        .text = "Style sp\nan tes\nt 12345",
+        .defaultFont = font,
+        .defaultSize = 36.0,
+        .spans = spans,
+        .spanCount = 2,
+        .alignment = blurg_align_center
+    };
+
+    int fcount;
+    blurg_rect_t* formattedRects = blurg_build_formatted(blurg, &formatted, &fcount);
+    drawRects(formattedRects, fcount, 8, 200);
+    blurg_free_rects(formattedRects);
+
     SDL_GL_SwapWindow(Window);
   }
 }
