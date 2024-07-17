@@ -48,9 +48,15 @@ typedef enum {
 	blurg_align_center = 2
 } blurg_align_t;
 
+typedef enum {
+    blurg_encoding_utf8 = 0,
+    blurg_encoding_utf16 = 1
+} blurg_encoding_t;
+
 
 typedef struct _blurg_formatted_text {
-  const char *text;
+  const void *text;
+  blurg_encoding_t encoding;
   blurg_align_t alignment;
   blurg_style_span_t *spans;
   int spanCount;
@@ -66,7 +72,7 @@ BLURGAPI blurg_t *blurg_create(blurg_texture_allocate textureAllocate, blurg_tex
 BLURGAPI blurg_font_t *blurg_font_create(blurg_t *blurg, const char *filename);
 
 BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, const char *text, int* rectCount);
-BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *text, int *rectCount);
+BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *text, float maxWidth, int *rectCount);
 
 BLURGAPI void blurg_free_rects(blurg_rect_t *rects);
 

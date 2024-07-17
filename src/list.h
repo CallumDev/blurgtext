@@ -1,3 +1,5 @@
+#ifndef _LIST_H_
+#define _LIST_H_
 #include<stdlib.h>
 
 #define LIST_DEF(structname, type) typedef struct { \
@@ -32,11 +34,18 @@ void structname ## _ensure_size (structname *list, int capacity) \
 \
 void structname ## _insert (structname *list, int index, type data) \
 {\
+    if(index >= list->count) {\
+        structname ## _ensure_size(list, index + 1); \
+        list->count = index + 1; \
+        list->data[index] = data; \
+        return;\
+    }\
     structname ## _ensure_size(list, list->count + 1); \
     for(int i = list->count; i > index; i--) { \
         list->data[i] = list->data[i - 1]; \
     } \
     list->data[index] = data; \
+    list->count++; \
 }\
 void structname ## _add (structname *list, type data) \
 {\
@@ -62,3 +71,4 @@ void structname ## _free(structname *list) \
 
 #define DEFINE_LIST(type) LIST_DEF(list_ ## type, type)
 #define IMPLEMENT_LIST(type) LIST_IMPL(list_ ## type, type)
+#endif

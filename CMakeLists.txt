@@ -20,6 +20,16 @@ set_target_properties(blurgtext PROPERTIES C_VISIBILITY_PRESET hidden)
 target_compile_definitions(blurgtext PRIVATE -DBUILDING_BLURG)
 target_include_directories(blurgtext PUBLIC "include")
 
+# libunibreak
+file(GLOB_RECURSE UNIBREAK_SOURCES RELATIVE ${CMAKE_SOURCE_DIR} "deps/libunibreak/src/*.c")
+add_library(unibreak STATIC
+    ${UNIBREAK_SOURCES}
+)
+target_include_directories(unibreak PUBLIC "deps/libunibreak/src")
+set_property(TARGET unibreak PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_target_properties(unibreak PROPERTIES C_VISIBILITY_PRESET hidden)
+target_link_libraries(blurgtext PRIVATE unibreak)
+
 # raqm, Freetype, Harfbuzz Dependencies
 add_library(raqm STATIC
     deps/libraqm/src/raqm.c

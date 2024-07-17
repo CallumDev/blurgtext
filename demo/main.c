@@ -213,17 +213,33 @@ int main(int argc, char* argv[])
     spans[1].fontSize = 24.0;
 
     blurg_formatted_text_t formatted = {
-        .text = "Style sp\nan tes\nt 12345",
+        .text = "This is an extremely long string that we are going to be wrapping based on a maxWidth (350px) amount. Let's have a look and see how we get on.\nManual line break\nABCDEFGHIJKLMNOPQRSTUVWXYZNOWIKNOWMYABCSNEXTTIMEWON'TYOUSINGWITHME",
         .defaultFont = font,
-        .defaultSize = 36.0,
+        .defaultSize = 20.0,
         .spans = spans,
         .spanCount = 2,
-        .alignment = blurg_align_center
+        .alignment = blurg_align_left,
+        .encoding = blurg_encoding_utf8,
     };
 
     int fcount;
-    blurg_rect_t* formattedRects = blurg_build_formatted(blurg, &formatted, &fcount);
-    drawRects(formattedRects, fcount, 8, 200);
+    blurg_rect_t* formattedRects = blurg_build_formatted(blurg, &formatted, 350, &fcount);
+    drawRects(formattedRects, fcount, 8, 100);
+    blurg_free_rects(formattedRects);
+
+    blurg_formatted_text_t utf16 = {
+        // HELLO, WIDE! as a utf-16 encoded string. wchar_t on unix is 32-bit, so not portable here
+        .text = "H\0E\0L\0L\0O\0,\0 \0W\0I\0D\0E\0!\0\0",
+        .defaultFont = font,
+        .defaultSize = 20.0,
+        .spans = NULL,
+        .spanCount = 0,
+        .alignment = blurg_align_left,
+        .encoding = blurg_encoding_utf16,
+    };
+
+    formattedRects = blurg_build_formatted(blurg, &utf16, 350, &fcount);
+    drawRects(formattedRects, fcount, 200, 100);
     blurg_free_rects(formattedRects);
 
     SDL_GL_SwapWindow(Window);

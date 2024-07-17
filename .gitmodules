@@ -4,3 +4,6 @@
 [submodule "deps/SheenBidi"]
 	path = deps/SheenBidi
 	url = https://github.com/Tehreer/SheenBidi
+[submodule "deps/libunibreak"]
+	path = deps/libunibreak
+	url = https://github.com/adah1972/libunibreak
