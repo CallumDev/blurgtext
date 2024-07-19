@@ -19,21 +19,21 @@ static const uint8_t blurg_gamma[0x100] = {
     0xF6, 0xF7, 0xF7, 0xF8, 0xF8, 0xF9, 0xF9, 0xFA, 0xFB, 0xFB, 0xFC, 0xFC, 0xFD, 0xFD, 0xFE, 0xFF
 };
 
-struct glyph_entry {
+typedef struct _glyph_entry {
     uint64_t key;
     blurg_glyph glyph;
-};
+} glyph_entry;
 
 int glyph_compare(const void *a, const void* b, void *udata)
 {
-    const struct glyph_entry *ga = a;
-    const struct glyph_entry *gb = b;
+    const glyph_entry *ga = a;
+    const glyph_entry *gb = b;
     return ga->key < gb->key ? -1 : ga->key > gb->key ? 1 : 0;
 }
 
 uint64_t glyph_hash(const void *item, uint64_t seed0, uint64_t seed1)
 {
-    const struct glyph_entry *entry = item;
+    const glyph_entry *entry = item;
     return hashmap_sip(&entry->key, sizeof(uint64_t), seed0, seed1);
 }
 
@@ -52,7 +52,7 @@ static void new_texture(blurg_t *blurg)
 
 void glyphatlas_init(blurg_t *blurg)
 {
-    blurg->glyphMap = hashmap_new(sizeof(struct glyph_entry), 0, 0, 0, glyph_hash, glyph_compare, NULL, NULL);
+    blurg->glyphMap = hashmap_new(sizeof(glyph_entry), 0, 0, 0, glyph_hash, glyph_compare, NULL, NULL);
     new_texture(blurg);
 }
 
@@ -66,7 +66,7 @@ void glyphatlas_get(blurg_t *blurg, blurg_font_t *font, uint32_t index, blurg_gl
     uint64_t key = ((uint64_t)font->hash);
     key = (key << 32) | index;
 
-    const struct glyph_entry *result = hashmap_get(blurg->glyphMap, &(struct glyph_entry){ .key = key });
+    const glyph_entry *result = hashmap_get(blurg->glyphMap, &(glyph_entry){ .key = key });
     if(result) {
         *glyph = result->glyph;
         return;
@@ -115,5 +115,5 @@ void glyphatlas_get(blurg_t *blurg, blurg_font_t *font, uint32_t index, blurg_gl
     };
     // update packing, set hashmap
     blurg->packed.currentX += packW;
-    hashmap_set(blurg->glyphMap, &(struct glyph_entry){ .key = key, .glyph = *glyph });
+    hashmap_set(blurg->glyphMap, &(glyph_entry){ .key = key, .glyph = *glyph });
 }

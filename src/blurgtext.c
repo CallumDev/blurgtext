@@ -3,7 +3,6 @@
 #include <string.h>
 #include <linebreak.h>
 #include "list.h"
-#include <wchar.h>
 #include <math.h>
 
 DEFINE_LIST(blurg_rect_t);
@@ -35,6 +34,7 @@ BLURGAPI blurg_t *blurg_create(blurg_texture_allocate textureAllocate, blurg_tex
         return NULL;
     }
     glyphatlas_init(blurg);
+    font_manager_init(blurg);
     return blurg;
 }
 
@@ -42,6 +42,7 @@ BLURGAPI void blurg_destroy(blurg_t *blurg)
 {
     glyphatlas_destroy(blurg);
     FT_Done_Library(blurg->library);
+    font_manager_destroy(blurg);
     free(blurg);
 }
 

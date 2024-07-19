@@ -8,7 +8,9 @@ add_library(blurgtext SHARED
     src/blurgtext.c
     src/hashmap.c
     src/glyphatlas.c
+    src/fontmanager.c
     src/font.c
+    src/util.c
 )
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU" AND BT_MINGW_BUNDLE_LIBGCC)

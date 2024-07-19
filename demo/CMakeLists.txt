@@ -6,6 +6,12 @@ add_executable(blurgtest
   glad/src/glad.c
 )
 configure_file(Roboto-Regular.ttf Roboto-Regular.ttf COPYONLY)
+configure_file(Roboto-Bold.ttf Roboto-Bold.ttf COPYONLY)
+configure_file(Roboto-Italic.ttf Roboto-Italic.ttf COPYONLY)
+configure_file(Roboto-BoldItalic.ttf Roboto-BoldItalic.ttf COPYONLY)
+configure_file(Roboto-ThinItalic.ttf Roboto-ThinItalic.ttf COPYONLY)
+configure_file(Roboto-Black.ttf Roboto-Black.ttf COPYONLY)
+
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU")
     set(IS_MINGW_BUILD "Y")

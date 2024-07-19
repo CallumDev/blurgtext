@@ -17,6 +17,17 @@ extern "C" {
 #include <stdint.h>
 
 typedef struct _blurg blurg_t;
+
+#define BLURG_WEIGHT_THIN (100)
+#define BLURG_WEIGHT_EXTRALIGHT (200)
+#define BLURG_WEIGHT_LIGHT (300)
+#define BLURG_WEIGHT_REGULAR (400)
+#define BLURG_WEIGHT_MEDIUM (500)
+#define BLURG_WEIGHT_SEMIBOLD (600)
+#define BLURG_WEIGHT_BOLD (700)
+#define BLURG_WEIGHT_EXTRABOLD (800)
+#define BLURG_WEIGHT_BLACK (900)
+
 typedef struct _blurg_font blurg_font_t;
 
 // Usually a 32-bit RGBA color, representing 0xRRGGBBAA.
@@ -102,13 +113,41 @@ typedef void (*blurg_texture_update)(blurg_texture_t *texture, void *buffer, int
 
 BLURGAPI blurg_t *blurg_create(blurg_texture_allocate textureAllocate, blurg_texture_update textureUpdate);
 
-BLURGAPI blurg_font_t *blurg_font_create(blurg_t *blurg, const char *filename);
+BLURGAPI const char *blurg_font_get_family(blurg_font_t *font);
+BLURGAPI int blurg_font_get_italic(blurg_font_t *font);
+BLURGAPI int blurg_font_get_weight(blurg_font_t *font);
+BLURGAPI float blurg_font_get_line_height(blurg_font_t *font, float size);
 
+BLURGAPI blurg_font_t *blurg_font_add_file(blurg_t *blurg, const char *filename);
+/*
+ * Adds a font from a memory buffer. 
+ * If copy is 1, blurg copies the data internally.
+ * If copy is 0, the application manages the data. The buffer must not be freed until after blurg_destroy is called.
+*/
+BLURGAPI blurg_font_t *blurg_font_add_memory(blurg_t *blurg, char *data, int len, int copy);
+/*
+* Tries to find a font with the specified family, weight and italic.
+* Returns NULL if a font is not found
+*/
+BLURGAPI blurg_font_t *blurg_font_query(blurg_t *blurg, const char *familyName, int weight, int italic);
+/*
+ * Turns a single string into a rectangle array. Free the result with blurg_free_rects
+*/
 BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int* rectCount);
+/*
+ * Turns a formatted text object into a rectangle array. Free the result with blurg_free_rects
+ * This function does not take ownership of any members of blurg_formatted_text_t
+*/
 BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *text, float maxWidth, int *rectCount);
 
+/*
+ * Frees a rectangle array returned by a  blurg_build_* function
+*/
 BLURGAPI void blurg_free_rects(blurg_rect_t *rects);
-
+/*
+ * Destroys a blurg instance and all associated fonts.
+ * Does NOT free rectangle arrays returned from blurg_free_*
+*/
 BLURGAPI void blurg_destroy(blurg_t *blurg);
 
 #ifdef __cplusplus

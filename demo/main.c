@@ -114,7 +114,7 @@ static void drawRects(blurg_rect_t *rects, int count, int x, int y)
 static void drawString(blurg_t* blurg, blurg_font_t *font, const char *text, int x, int y)
 {
     int count;
-    blurg_rect_t *rects = blurg_build_string(blurg, font, 36.0, 0xFF0000FF, text, &count);
+    blurg_rect_t *rects = blurg_build_string(blurg, font, 19.0, 0xFF0000FF, text, &count);
     drawRects(rects, count, x, y);
     blurg_free_rects(rects);
 }
@@ -125,7 +125,7 @@ static blurg_font_t* loadFont(blurg_t *blurg, const char *filename)
     char path[1000];
     snprintf(path, 1000, "%s/%s", basePath, filename);
     SDL_free(basePath);
-    return blurg_font_create(blurg, path);
+    return blurg_font_add_file(blurg, path);
 }
 
 static void shaderSource(uint32_t id, const char *a, const char *b)
@@ -171,6 +171,12 @@ int main(int argc, char* argv[])
     // Generate string
     blurg_t *blurg = blurg_create(tallocate, tupdate);
     blurg_font_t *font = loadFont(blurg, "Roboto-Regular.ttf");
+
+    loadFont(blurg, "Roboto-Bold.ttf");
+    loadFont(blurg, "Roboto-Italic.ttf");
+    loadFont(blurg, "Roboto-BoldItalic.ttf");
+    loadFont(blurg, "Roboto-ThinItalic.ttf");
+    loadFont(blurg, "Roboto-Black.ttf");
 
     uint32_t vao;
     glGenVertexArrays(1, &vao);
@@ -243,12 +249,19 @@ int main(int argc, char* argv[])
     glDisable(GL_DEPTH_TEST);
 
     drawString(blurg, font, "Hello World!\nNewline test", 8, 8);
-
+    drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BLACK, 0), "WEIGHT TEST", 400, 8);
+    char strBuffer[1000];
+    blurg_font_t *med = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0);
+    snprintf(strBuffer, 1000, "medium fallback\n(actual: %d weight, %d italic)", blurg_font_get_weight(med), blurg_font_get_italic(med));
+    drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0), strBuffer, 400, 100);
+    blurg_font_t *medItalic = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 1);
+    snprintf(strBuffer, 1000, "medium-italic fallback\n(actual: %d weight, %d italic)", blurg_font_get_weight(medItalic), blurg_font_get_italic(medItalic));
+    drawString(blurg, medItalic, strBuffer, 400, 200);
     blurg_style_span_t spans[3];
     memset(spans, 0, sizeof(blurg_style_span_t) * 2);
     spans[0].startIndex = 5;
     spans[0].endIndex = 8;
-    spans[0].font = font;
+    spans[0].font = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_REGULAR, 1); //italic
     spans[0].fontSize = 90.0;
     spans[0].color = 0xFFFF0000;
     spans[0].shadow = BLURG_NO_SHADOW;
@@ -256,7 +269,7 @@ int main(int argc, char* argv[])
     // change size
     spans[1].startIndex = 14;
     spans[1].endIndex = 16;
-    spans[1].font = font;
+    spans[1].font = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 1); //bolditalic
     spans[1].fontSize = 24.0;
     spans[1].color = BLURG_RGBA(0, 255, 0, 255);
     spans[1].shadow = BLURG_NO_SHADOW;
@@ -264,7 +277,7 @@ int main(int argc, char* argv[])
     // start underline
     spans[2].startIndex = 26;
     spans[2].endIndex = 42;
-    spans[2].font = font;
+    spans[2].font = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0); //bold
     spans[2].fontSize = 20.0;
     spans[2].color = BLURG_RGBA(255,0,255,255);
     spans[2].shadow = BLURG_NO_SHADOW;
@@ -298,7 +311,7 @@ int main(int argc, char* argv[])
     blurg_formatted_text_t utf16 = {
         // HELLO, WIDE! as a utf-16 encoded string. wchar_t on unix is 32-bit, so not portable here
         .text = "H\0E\0L\0L\0O\0,\0 \0W\0I\0D\0E\0!\0\0",
-        .defaultFont = font,
+        .defaultFont = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_THIN, 1),
         .defaultSize = 20.0,
         .defaultColor = BLURG_RGBA(0x64, 0x95, 0xED, 0xFF),
         .defaultShadow = { .pixels = 1, .color = BLURG_RGBA(0, 0, 0, 255) },

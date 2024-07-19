@@ -1,5 +1,7 @@
 #include "blurgtext_internal.h"
 #include <string.h>
+#include <ctype.h>
+#include "util.h"
 
 #define DPI 72
 
@@ -104,16 +106,104 @@ static void SetCharmap(FT_Face face)
     } 
 }
 
-BLURGAPI blurg_font_t *blurg_font_create(blurg_t *blurg, const char *filename)
+static void get_face_information(FT_Face face, int* weight, int* italic)
+{
+    *italic = (face->style_flags & FT_STYLE_FLAG_ITALIC) == FT_STYLE_FLAG_ITALIC;
+    *weight = BLURG_WEIGHT_REGULAR;
+    if(face->style_name) {
+        int len;
+        char *lw = strlower(face->style_name, &len);
+        if(len >= 10 && (
+            strstr(lw, "extrablack") || 
+            strstr(lw, "ultrablack") ||
+            strstr(lw, "extra black") ||
+            strstr(lw, "ultrablack")
+        )) {
+            *weight = BLURG_WEIGHT_EXTRABOLD;
+        }
+        else if (len >= 10 && (
+            strstr(lw, "extralight") ||
+            strstr(lw, "ultralight") ||
+            strstr(lw, "extra light") ||
+            strstr(lw, "ultra light")
+        )) {
+            *weight = BLURG_WEIGHT_EXTRALIGHT;
+        }
+        else if (len >= 9 && (
+            strstr(lw, "demilight") ||
+            strstr(lw, "demi light")
+        )) {
+            *weight = BLURG_WEIGHT_LIGHT;
+        }
+        else if (len >= 8 && (
+            strstr(lw, "demibold") ||
+            strstr(lw, "semibold") ||
+            strstr(lw, "demi bold") ||
+            strstr(lw, "demibold")
+        )) {
+            *weight = BLURG_WEIGHT_SEMIBOLD;
+        }
+        else if (len >= 6 && strstr(lw, "medium")) {
+            *weight = BLURG_WEIGHT_MEDIUM;
+        }
+        else if (len >= 5 && (strstr(lw,"black") || strstr(lw, "heavy"))) {
+            *weight = BLURG_WEIGHT_BLACK;
+        }
+        else if (
+            strstr(lw, "regular") ||
+            strstr(lw, "normal") ||
+            strstr(lw, "regular") ||
+            strstr(lw,"text")
+        ) {
+            *weight = BLURG_WEIGHT_REGULAR;
+        }
+        else if (strstr(lw, "thin")) {
+            *weight = BLURG_WEIGHT_THIN;
+        }
+        else if (strstr(lw, "bold")) {
+            *weight = BLURG_WEIGHT_BOLD;
+        }
+        free(lw);
+    }
+    if((face->style_flags & FT_STYLE_FLAG_BOLD) == FT_STYLE_FLAG_BOLD)
+    {
+        if(*weight <= BLURG_WEIGHT_REGULAR)
+            *weight = BLURG_WEIGHT_BOLD;
+    }
+}
+
+BLURGAPI const char *blurg_font_get_family(blurg_font_t *font)
+{
+    return font->face->family_name;
+}
+
+BLURGAPI int blurg_font_get_italic(blurg_font_t *font)
+{
+    return font->italic;
+}
+
+BLURGAPI int blurg_font_get_weight(blurg_font_t *font)
+{
+    return font->weight;
+}
+
+BLURGAPI float blurg_font_get_line_height(blurg_font_t *font, float size)
+{
+    font_use_size(font, size);
+    return font->lineHeight;
+}
+
+blurg_font_t *blurg_font_create_internal(blurg_t *blurg, allocated_font *data)
 {
     FT_Face face;
-    FT_Error error = FT_New_Face(blurg->library, filename, 0, &face);
+    FT_Error error = FT_New_Memory_Face(blurg->library, data->data, data->dataLen, 0, &face);
+
     if(error) {
-        printf("FT_New_face failed: %s\n", FT_Error_String(error));
+        printf("FT_New_Memory_Face failed: %s\n", FT_Error_String(error));
         return NULL;
     }
     SetCharmap(face);
     blurg_font_t *font = blurg_from_freetype(face);
+    get_face_information(face, &font->weight, &font->italic);
     return font;
 }
-
