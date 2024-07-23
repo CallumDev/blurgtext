@@ -1,3 +1,7 @@
 .vs/
 .vscode/
 build/ 
+[bB]in/
+[oO]bj/
+.idea/
+*.user

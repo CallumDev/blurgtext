@@ -42,8 +42,8 @@ typedef uint32_t blurg_color_t;
 
 typedef struct _blurg_underline {
     blurg_color_t color;
-    char useColor;
-    char enabled;
+    int useColor;
+    int enabled;
 } blurg_underline_t;
 
 #define BLURG_UNDERLINED ((blurg_underline_t){ .color = 0, .useColor = 0, .enabled = 1 })
@@ -133,12 +133,24 @@ BLURGAPI blurg_font_t *blurg_font_query(blurg_t *blurg, const char *familyName, 
 /*
  * Turns a single string into a rectangle array. Free the result with blurg_free_rects
 */
-BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int* rectCount);
+BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int* rectCount, float *width, float *height);
+BLURGAPI blurg_rect_t* blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const uint16_t *text, int* rectCount, float *width, float *height);
 /*
- * Turns a formatted text object into a rectangle array. Free the result with blurg_free_rects
+ * Turns an array of formatted text objects into a rectangle array. Free the result with blurg_free_rects
+ * Count of rects is written to rectCount, width and height of built text written to width/height parameters
  * This function does not take ownership of any members of blurg_formatted_text_t
 */
-BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *text, float maxWidth, int *rectCount);
+BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *texts, int count, float maxWidth, int *rectCount, float *width, float *height);
+
+/*
+ * Measures the provided string, size is written to width+height
+*/
+BLURGAPI void blurg_measure_string(blurg_t *blurg, blurg_font_t *font, float size, const char *text, float *width, float *height);
+BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, const uint16_t *text, float *width, float *height);
+/*
+ * Measures the provided formatted texts, size is written to width+height
+*/
+BLURGAPI void blurg_measure_formatted(blurg_t *blurg, blurg_formatted_text_t *texts, int count, float maxWidth, float* width, float *height);
 
 /*
  * Frees a rectangle array returned by a  blurg_build_* function

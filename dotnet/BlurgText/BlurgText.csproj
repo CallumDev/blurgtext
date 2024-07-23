@@ -1,0 +1,64 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <!-- Nuget Properties. -->
+        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <PackageId>BlurgText</PackageId>
+        <Version>0.1.0</Version>
+        <Authors>Callum McGing</Authors>
+        <Description>A platform-independent text layout library</Description>
+        <PackageProjectUrl>https://github.com/blurgtext/blurgtext</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/blurgtext/blurgtext</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+        <PackageIcon>icon.png</PackageIcon>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+    <!-- Package files -->
+    <ItemGroup>
+        <Content Include="README.md" PackagePath="">
+            <Pack>true</Pack>
+        </Content>
+        <Content Include="icon.png" PackagePath="">
+            <Pack>true</Pack>
+        </Content>
+        <Content Include="..\..\LICENSE.txt" PackagePath="">
+            <Link>LICENSE.txt</Link>
+            <Pack>true</Pack>
+        </Content>
+    </ItemGroup>
+    <!-- Native libraries -->
+    <ItemGroup>
+      <Content Include="..\..\build\nuget\linux-x64\libblurgtext.so">
+        <Link>runtimes\linux-x64\native\libblurgtext.so</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <PackagePath>runtimes/linux-x64/native/</PackagePath>
+        <Pack>true</Pack>
+      </Content>
+      <Content Include="..\..\build\nuget\win-x64\blurgtext.dll">
+          <Link>runtimes\win-x64\native\blurgtext.dll</Link>
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+          <PackagePath>runtimes/win-x64/native/</PackagePath>
+          <Pack>true</Pack>
+      </Content>
+      <Content Include="..\..\build\nuget\win-x86\blurgtext.dll">
+        <Link>runtimes\win-x86\native\blurgtext.dll</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <PackagePath>runtimes/win-x86/native/</PackagePath>
+        <Pack>true</Pack>
+      </Content>
+    </ItemGroup>
+</Project>

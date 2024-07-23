@@ -3,6 +3,7 @@
 #include <string.h>
 #include <linebreak.h>
 #include "list.h"
+#include "util.h"
 #include <math.h>
 
 DEFINE_LIST(blurg_rect_t);
@@ -14,6 +15,7 @@ typedef struct {
     int textCount;
     float width;
     float lineHeight;
+    int paraIndex;
     list_blurg_rect_t rects;
 } text_line;
 
@@ -55,7 +57,7 @@ static size_t utf16_strlen(utf16_t *text)
     return sz;
 }
 
-static void blurg_get_lines(const void *text, int* textLen, blurg_encoding_t encoding, list_text_line *lines, char **breaks)
+static void blurg_get_lines(const void *text, int* textLen, blurg_encoding_t encoding, list_text_line *lines, char **breaks, int paraIndex)
 {
     int total;
     if(encoding == blurg_encoding_utf16) {
@@ -73,15 +75,15 @@ static void blurg_get_lines(const void *text, int* textLen, blurg_encoding_t enc
     for(int i = 0; i < total; i++) {
         if((*breaks)[i] == LINEBREAK_MUSTBREAK) {
             if(last == i) {
-                list_text_line_add(lines, (text_line){ .isBreak = 1, .textStart = i, .textCount = 1});
+                list_text_line_add(lines, (text_line){ .isBreak = 1, .textStart = i, .textCount = 1, .paraIndex = paraIndex});
             } else {
-                list_text_line_add(lines, (text_line){ .isBreak = 0, .textStart = last, .textCount = i - last});
+                list_text_line_add(lines, (text_line){ .isBreak = 0, .textStart = last, .textCount = i - last, .paraIndex = paraIndex});
             }
             last = i + 1;
         }
     }
     if(total - last > 0) {
-        list_text_line_add(lines, (text_line){.isBreak = 0, .textStart = last, .textCount = total - last });
+        list_text_line_add(lines, (text_line){.isBreak = 0, .textStart = last, .textCount = total - last, .paraIndex = paraIndex });
     }
 }
 
@@ -100,10 +102,10 @@ typedef struct {
     int offset;
 } active_underline;
 
-static void add_underline(active_underline ul, float xEnd, list_blurg_rect_t *rb, float y)
+static void add_underline(blurg_t *b, active_underline ul, float xEnd, list_blurg_rect_t *rb, float y)
 {
     list_blurg_rect_t_add(rb, (blurg_rect_t){
-        .texture = rb->data[rb->count - 1].texture,
+        .texture = rb->count > 0 ? rb->data[rb->count - 1].texture : b->packed.pages[0],
         .u0 = 0.5 / BLURG_TEXTURE_SIZE, //sample centre of pixel, works better.
         .u1 = 0.5 / BLURG_TEXTURE_SIZE,
         .v0 = 0.5 / BLURG_TEXTURE_SIZE,
@@ -140,7 +142,7 @@ static void raqm_to_rects(
             blurg_shadow_t shadow = IDX_SHADOW(glyphs[i].cluster);
             if(!shadow.pixels) {
                 if(ul.active) {
-                    add_underline(ul, shadowX, rb, shadowY);
+                    add_underline(blurg, ul, shadowX, rb, shadowY);
                     ul.active = 0;
                 }
                 shadowX += glyphs[i].x_advance / 64.0;
@@ -180,14 +182,14 @@ static void raqm_to_rects(
                 ul.offset = shadow.pixels;
             }
             else if(ul.active && !underline.enabled) {
-                add_underline(ul, shadowX, rb, shadowY);
+                add_underline(blurg, ul, shadowX, rb, shadowY);
                 ul.active = 0;
             }
             else if (ul.active && underline.enabled && (
                 shadow.color != ul.color ||
                 shadow.pixels != ul.offset ||
                 upos != ul.pos)) {
-                add_underline(ul, shadowX, rb, shadowY);
+                add_underline(blurg, ul, shadowX, rb, shadowY);
                 ul.xStart = shadowX;
                 ul.color = shadow.color;
                 ul.offset = shadow.pixels;
@@ -196,7 +198,7 @@ static void raqm_to_rects(
             shadowY += glyphs[i].y_advance / 64.0;
         }
         if(ul.active) {
-            add_underline(ul, shadowX, rb, *y);
+            add_underline(blurg, ul, shadowX, rb, *y);
         }
         ul.active = 0;
     }
@@ -225,13 +227,13 @@ static void raqm_to_rects(
                 ul.pos = upos;
             }
             else if(ul.active && !underline.enabled) {
-                add_underline(ul, underlineX, rb, underlineY);
+                add_underline(blurg, ul, underlineX, rb, underlineY);
                 ul.active = 0;
             }
             else if (ul.active && underline.enabled && (
                 ucolor != ul.color ||
                 upos != ul.pos)) {
-                add_underline(ul, underlineX, rb, underlineY);
+                add_underline(blurg, ul, underlineX, rb, underlineY);
                 ul.xStart = *x;
                 ul.color = ucolor;
                 ul.offset = 0;
@@ -241,7 +243,7 @@ static void raqm_to_rects(
             underlineY += glyphs[i].y_advance / 64.0;
         }
         if(ul.active) {
-            add_underline(ul, underlineX, rb, underlineY);
+            add_underline(blurg, ul, underlineX, rb, underlineY);
         }
     }
 
@@ -270,8 +272,67 @@ static void raqm_to_rects(
     
 }
 
+static void wrap_line(raqm_glyph_t *glyphs, char* breaks, int *charCount, size_t *glyphCount, float x, float maxWidth)
+{
+    if(maxWidth > 0) {
+        // wrap text if necessary
+        float cx = x;
+        size_t stop;
+        for(stop = 0; stop < *glyphCount; stop++) {
+            float advance = (glyphs[stop].x_advance / 64.0);
+            if(cx + advance > maxWidth) {
+                break;
+            }
+            cx += advance;
+        }
+        // Text is too big, we need to line break!
+        if(stop != *glyphCount) {
+            if(x <= 0 && stop == 0) { 
+                // too big to put a single character on a line?
+                // just output one glyph
+                stop = 1;
+                *glyphCount = 1;
+                *charCount = (int)glyphs[1].cluster;
+            } 
+            else {
+                // Calculate an appropriate line break
+                int cc = (int)glyphs[stop].cluster;
+                int lastAllowed = -1;
+                for(int i = cc - 1; i > 0; i--) {
+                    if(breaks[i] == LINEBREAK_ALLOWBREAK) {
+                        lastAllowed = i;
+                        break;
+                    }
+                }
+                // If we have an appropiate line break, use that
+                if(lastAllowed != -1) {
+                    int found = 0;
+                    for(int i = 0; i < stop; i++) {
+                        if(glyphs[i].cluster == lastAllowed) {
+                            stop = i;
+                            found = 1;
+                            break;
+                        }
+                    }
+                    if(found && (stop + 1) < *glyphCount) {
+                        //skip the space we converted into a break
+                        *charCount = (int)glyphs[stop + 1].cluster;
+                    } else {
+                        *charCount = (int)glyphs[stop].cluster;
+                    }
+                    *glyphCount = stop;
+                } else {
+                    //no appropriate line break, just insert an \n
+                    *glyphCount = stop;
+                    *charCount = (int)glyphs[stop].cluster;
+                }
+            }
+        }
+    }
+}
+
 // returns the length of text shaped/turned into rects for current maxWidth
-static int blurg_shape_multiple(blurg_t *blurg, const void *str, char *breaks, int len, float size,
+static int blurg_shape_chunk(blurg_t *blurg, const void *str, char *breaks, int len, float size,
     int* attributes, blurg_formatted_text_t *text, list_blurg_rect_t *rb, float *x, float *y, float maxWidth)
 {
     raqm_t* rq = raqm_create();
@@ -298,62 +359,8 @@ static int blurg_shape_multiple(blurg_t *blurg, const void *str, char *breaks, i
     raqm_layout(rq);
     size_t count = SIZE_MAX;
     int charCount = len;
-    if(maxWidth > 0) {
-        // wrap text if necessary
-        raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
-        float cx = *x;
-        size_t stop;
-        for(stop = 0; stop < count; stop++) {
-            float advance = (glyphs[stop].x_advance / 64.0);
-            if(cx + advance > maxWidth) {
-                break;
-            }
-            cx += advance;
-        }
-        // Text is too big, we need to line break!
-        if(stop != count) {
-            if(*x <= 0 && stop == 0) { 
-                // too big to put a single character on a line?
-                // just output one glyph
-                stop = 1;
-                count = 1;
-                charCount = (int)glyphs[1].cluster;
-            } 
-            else {
-                // Calculate an appropriate line break
-                int cc = (int)glyphs[stop].cluster;
-                int lastAllowed = -1;
-                for(int i = cc - 1; i > 0; i--) {
-                    if(breaks[i] == LINEBREAK_ALLOWBREAK) {
-                        lastAllowed = i;
-                        break;
-                    }
-                }
-                // If we have an appropiate line break, use that
-                if(lastAllowed != -1) {
-                    int found = 0;
-                    for(int i = 0; i < stop; i++) {
-                        if(glyphs[i].cluster == lastAllowed) {
-                            stop = i;
-                            found = 1;
-                            break;
-                        }
-                    }
-                    if(found && (stop + 1) < count) {
-                        //skip the space we converted into a break
-                        charCount = (int)glyphs[stop + 1].cluster;
-                    } else {
-                        charCount = (int)glyphs[stop].cluster;
-                    }
-                    count = stop;
-                } else {
-                    //no appropriate line break, just insert an \n
-                    count = stop;
-                    charCount = (int)glyphs[stop].cluster;
-                }
-            }
-        }
-    }
+    raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
+    wrap_line(glyphs, breaks, &charCount, &count, *x, maxWidth);
     raqm_to_rects(blurg, rq, rb, x, y, count, text, attributes, hasShadows < charCount, hasUnderlines < charCount);
     raqm_destroy(rq);
     return charCount;
@@ -367,10 +374,19 @@ static void split_line(list_text_line *lines, int lineIndex, int splitPoint)
     text_line newLine = {
         .isBreak = 0,
         .textStart = newStart,
-        .textCount = newCount
+        .textCount = newCount,
+        .paraIndex = lines->data[lineIndex].paraIndex,
     };
     list_text_line_insert(lines, lineIndex + 1, newLine);
 }
+
+// accessors for attribute and text arrays
+#define TEXT_OFFSET(x) (text->encoding == blurg_encoding_utf16 ? (const void*)(\
+    &((const utf16_t*)(text->text))[(x)] \
+) : (const void*) (\
+    &((const char*)(text->text))[(x)] \
+))
+#define ATTRIBUTE_OFFSET(x) (attributes ? &attributes[(x)] : NULL)
 
 static void blurg_wrap_shape_line(
     blurg_t *blurg, 
@@ -390,7 +406,6 @@ static void blurg_wrap_shape_line(
         lines->data[lineIndex].lineHeight = fnt->lineHeight;
         lines->data[lineIndex].rects.count = 0;
         lines->data[lineIndex].rects.data = NULL;
-        return;
     }
 
     list_blurg_rect_t shapeBuffer;
@@ -411,14 +426,6 @@ static void blurg_wrap_shape_line(
     float x = 0;
     float y = 0;
 
-    // accessors for attribute and text arrays
-    #define TEXT_OFFSET(x) (text->encoding == blurg_encoding_utf16 ? (const void*)(\
-        &((const utf16_t*)(text->text))[(x)] \
-    ) : (const void*) (\
-        &((const char*)(text->text))[(x)] \
-    ))
-    #define ATTRIBUTE_OFFSET(x) (attributes ? &attributes[(x)] : NULL)
-
     for(int i = 0; i < count; i++) {
         blurg_font_t *fontAtIndex = IDX_FONT(start + i);
         float sizeAtIndex = IDX_SIZE(start + i);
@@ -426,7 +433,7 @@ static void blurg_wrap_shape_line(
         if(currentSize != sizeAtIndex) {
             if(i - last > 0) {
                 int shapeCount = i - last;
-                int actualCount = blurg_shape_multiple(
+                int actualCount = blurg_shape_chunk(
                     blurg, 
                     TEXT_OFFSET(start+last),
                     &breaks[start + last],
@@ -454,7 +461,7 @@ static void blurg_wrap_shape_line(
 
     if(count - last > 0) {
         int shapeCount = count - last;
-        int actualCount = blurg_shape_multiple(
+        int actualCount = blurg_shape_chunk(
             blurg, 
             TEXT_OFFSET(start + last), 
             &breaks[start + last], 
@@ -467,8 +474,7 @@ static void blurg_wrap_shape_line(
             split_line(lines, lineIndex, last + actualCount);
         }
     }
-    #undef TEXT_OFFSET
-    #undef ATTRIBUTE_OFFSET
+
 
     finish:
     // apply ascender for line
@@ -481,40 +487,180 @@ static void blurg_wrap_shape_line(
     lines->data[lineIndex].rects = shapeBuffer;
 }
 
-BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *text, float maxWidth, int *rectCount)
+static int blurg_measure_chunk(blurg_t *blurg, const void *str, char *breaks, int len, float size,
+    int* attributes, blurg_formatted_text_t *text, float *x, float *y, float maxWidth)
 {
-    int total;
-    list_text_line lines;
-    list_text_line_init(&lines, 8);
-    char *breaks;
-    blurg_get_lines(text->text, &total, text->encoding, &lines, &breaks);
-    if(total == 0) {
-        *rectCount = 0;
-        list_text_line_free(&lines);
-        free(breaks);
-        return NULL;
+    raqm_t* rq = raqm_create();
+    if(text->encoding == blurg_encoding_utf16)
+        raqm_set_text_utf16(rq, (const utf16_t*)str, len);
+    else
+        raqm_set_text_utf8(rq, (const char*)str, len);
+    raqm_set_par_direction(rq, RAQM_DIRECTION_DEFAULT);
+    for(int i = 0; i < len; i++) {
+        blurg_font_t *fontAtIndex = IDX_FONT(i);
+        font_use_size(fontAtIndex, size);
+        raqm_set_freetype_face_range(rq, fontAtIndex->face, i, 1);
+    }
+    raqm_layout(rq);
+    size_t count = SIZE_MAX;
+    int charCount = len;
+    raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
+    wrap_line(glyphs, breaks, &charCount, &count, *x, maxWidth);
+    for(int i = 0; i < count; i++) {
+        *x += (glyphs[i].x_advance / 64.0);
+        *y += (glyphs[i].y_advance / 64.0);
+    }
+    raqm_destroy(rq);
+    return charCount;
+}
+
+static void blurg_measure_line(
+    blurg_t *blurg, 
+    blurg_formatted_text_t *text, 
+    int* attributes, 
+    list_text_line *lines,
+    char *breaks,
+    int lineIndex,
+    float maxWidth
+)
+{
+    if(lines->data[lineIndex].isBreak) {
+        // This line is just an \n.
+        // Set line height and early exit
+        lines->data[lineIndex].width = 0;
+        blurg_font_t *fnt = IDX_FONT(lines->data[lineIndex].textStart);
+        font_use_size(fnt, IDX_SIZE(lines->data[lineIndex].textStart));
+        lines->data[lineIndex].lineHeight = fnt->lineHeight;
+        lines->data[lineIndex].rects.count = 0;
+        lines->data[lineIndex].rects.data = NULL;
+        return;
     }
 
-    // Attribute lookup table
-    int* attributes = NULL;
-    if(text->spans && text->spanCount) {
-        attributes = malloc(total * sizeof(int));
-        for(int i = 0; i < total; i++) 
-        {
-            attributes[i] = -1;
-        }
-        for(int i = 0; i < text->spanCount; i++) {
-            for(int j = text->spans[i].startIndex; j <= text->spans[i].endIndex; j++) {
-                attributes[j] = i;
+    int start = lines->data[lineIndex].textStart;
+    int count = lines->data[lineIndex].textCount;
+
+    int last = 0;
+    
+    blurg_font_t *font0 = IDX_FONT(start);
+    float currentSize = IDX_SIZE(start);
+    font_use_size(font0, currentSize);
+
+    float maxAscender = font0->ascender;
+    float maxLineHeight = font0->lineHeight;
+
+    float x = 0;
+    float y = 0;
+
+    for(int i = 0; i < count; i++) {
+        blurg_font_t *fontAtIndex = IDX_FONT(start + i);
+        float sizeAtIndex = IDX_SIZE(start + i);
+        // size change, we need to shape text
+        if(currentSize != sizeAtIndex) {
+            if(i - last > 0) {
+                int shapeCount = i - last;
+                int actualCount = blurg_measure_chunk(
+                    blurg, 
+                    TEXT_OFFSET(start+last),
+                    &breaks[start + last],
+                    i - last, 
+                    currentSize, 
+                    ATTRIBUTE_OFFSET(start + last), 
+                    text, 
+                    &x, &y, maxWidth);
+                if(actualCount != shapeCount) {
+                    split_line(lines, lineIndex, last + actualCount);
+                    // early exit
+                    goto finish;
+                }
+                last = i;
             }
         }
+        //keep track of line height + ascender for line
+        currentSize = sizeAtIndex;
+        font_use_size(fontAtIndex, sizeAtIndex);
+        if(fontAtIndex->lineHeight > maxLineHeight)
+            maxLineHeight = fontAtIndex->lineHeight;
+        if(fontAtIndex->ascender > maxAscender)
+            maxAscender = fontAtIndex->ascender;
     }
 
-    float alignWidth = 0;
-    // non-left aligned, shape all lines before copying to buffer
-    if(text->alignment != blurg_align_left) {
+    if(count - last > 0) {
+        int shapeCount = count - last;
+        int actualCount = blurg_measure_chunk(
+            blurg, 
+            TEXT_OFFSET(start + last), 
+            &breaks[start + last], 
+            count - last, 
+            currentSize, 
+            ATTRIBUTE_OFFSET(start + last), 
+            text, 
+            &x, &y, maxWidth);
+        if(actualCount != shapeCount) {
+            split_line(lines, lineIndex, last + actualCount);
+        }
+    }
+
+    finish:
+    // set metrics
+    lines->data[lineIndex].width = x;
+    lines->data[lineIndex].lineHeight = maxLineHeight;    
+}
+
+#undef TEXT_OFFSET
+#undef ATTRIBUTE_OFFSET
+
+typedef struct _paragraph_info {
+    int lineOffset;
+    int total;
+    int *attributes;
+    char *breaks;
+} paragraph_info;
+
+#define ALLOC_GUARDED(count,sz) (((count * sz) < 1024) ? stackalloc(count * sz) : malloc(count * sz))
+#define DEALLOC_GUARDED(x, count,sz) if (((count) * (sz)) >= 1024) free((x))
+
+BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *texts, int count, float maxWidth, int *rectCount, float *width, float *height)
+{
+    list_text_line lines;
+    list_text_line_init(&lines, 8);
+
+    int sumParagraphs = 0;
+
+    paragraph_info* paragraphs = ALLOC_GUARDED(count, sizeof(paragraph_info));
+
+    // Build info and process mandatory line breaks
+    int hasAlign = 0;
+    for(int i = 0; i < count; i++) {
+        paragraphs[i].lineOffset = lines.count;
+        blurg_get_lines(texts[i].text, &paragraphs[i].total, texts[i].encoding, &lines, &paragraphs[i].breaks, i);
+        sumParagraphs += paragraphs[i].total;
+        if(paragraphs[i].total && texts[i].alignment != blurg_align_left) {
+            hasAlign = 1;
+        }
+        if(texts[i].spans && texts[i].spanCount) {
+            int* attributes = malloc(paragraphs[i].total * sizeof(int));
+            for(int j = 0; j < paragraphs[i].total; j++) 
+            {
+                attributes[j] = -1;
+            }
+            for(int j = 0; j < texts[i].spanCount; j++) 
+            {
+                for(int k = texts[i].spans[j].startIndex; k <= texts[i].spans[j].endIndex; k++) 
+                {
+                    attributes[k] = j;
+                }
+            }
+            paragraphs[i].attributes = attributes;
+        } else {
+            paragraphs[i].attributes = NULL;
+        }
+    }
+
+    float alignWidth = maxWidth;
+    if(hasAlign) {
         for(int i = 0; i < lines.count; i++) {
-            blurg_wrap_shape_line(blurg, text, attributes, &lines, breaks, i, maxWidth);
+            int para = lines.data[i].paraIndex;
+            blurg_wrap_shape_line(blurg, &texts[para], paragraphs[para].attributes, &lines, paragraphs[para].breaks, i, maxWidth);
             if(lines.data[i].width > alignWidth) {
                 alignWidth = lines.data[i].width;
             }
@@ -523,35 +669,52 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
 
     // lines to shaped text
     list_blurg_rect_t rects;
-    list_blurg_rect_t_init(&rects, total);
+    list_blurg_rect_t_init(&rects, sumParagraphs);
     float y = 0;
+    float w = 0;
     for(int i = 0; i < lines.count; i++) {
-        if(text->alignment == blurg_align_left) //we don't need to allocate line buffers upfront if left aligned
-            blurg_wrap_shape_line(blurg, text, attributes, &lines, breaks, i, maxWidth);
+        int pIdx = lines.data[i].paraIndex;
+        if(!hasAlign) //we don't need to allocate line buffers upfront if left aligned
+        {
+            blurg_wrap_shape_line(blurg, &texts[pIdx], paragraphs[pIdx].attributes, &lines, paragraphs[pIdx].breaks, i, maxWidth);
+        }
         if(!lines.data[i].isBreak) {
             // copy rects
+            float offsetW = 0;
+            if(texts[pIdx].alignment == blurg_align_right) {
+                offsetW = (alignWidth - lines.data[i].width);
+            }
+            if(texts[pIdx].alignment == blurg_align_center) {
+                offsetW = (alignWidth / 2.0) - (lines.data[i].width / 2.0);
+            }
             for(int j = 0; j < lines.data[i].rects.count; j++) {
                 //process alignment
-                if(text->alignment == blurg_align_right) {
-                    lines.data[i].rects.data[j].x += (alignWidth - lines.data[i].width);
-                }
-                if(text->alignment == blurg_align_center) {
-                    lines.data[i].rects.data[j].x += (alignWidth / 2.0) - (lines.data[i].width / 2.0);
-                }
+                lines.data[i].rects.data[j].x += offsetW;
                 //position line
                 lines.data[i].rects.data[j].y += y;
             }
+
+            if((lines.data[i].width + offsetW) > w)
+                w = (lines.data[i].width + offsetW);
             list_blurg_rect_t_add_range(&rects, &lines.data[i].rects);
             list_blurg_rect_t_free(&lines.data[i].rects);
         }
         y += lines.data[i].lineHeight;
     }
     //cleanup and return
-    if(attributes)
-        free(attributes);
-    free(breaks);
+    for(int i = 0; i < count; i++) {
+        free(paragraphs[i].breaks);
+        if(paragraphs[i].attributes)
+            free(paragraphs[i].attributes);  
+    }
+    DEALLOC_GUARDED(paragraphs, count, sizeof(paragraph_info));
     list_text_line_free(&lines);
     
+    if(width)
+        *width = w;
+    if(height)
+        *height = y;
+
     if(rects.count > 0) {
         list_blurg_rect_t_shrink(&rects);
         *rectCount = rects.count;
@@ -563,20 +726,157 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
     }
 }
 
+BLURGAPI void blurg_measure_formatted(blurg_t *blurg, blurg_formatted_text_t *texts, int count, float maxWidth, float* width, float *height)
+{
+    if(!width && !height)
+        return;
 
-BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int* rectCount)
+    int total;
+    list_text_line lines;
+    list_text_line_init(&lines, 2 * count);
+    char *breaks;
+
+    // measure all paragraphs
+    float h = 0;
+    float w = 0;    
+    
+    int hasAlign = 0;
+    float alignWidth = maxWidth;
+
+    for(int i = 0; i < count; i++) {
+        int startIdx = lines.count;
+        blurg_get_lines(texts[i].text, &total, texts[i].encoding, &lines, &breaks, i);
+        if(!total) {
+            free(breaks);
+            continue;
+        }
+        if(texts[i].alignment == blurg_align_center ||
+           texts[i].alignment == blurg_align_right) {
+            hasAlign = 1;
+        }
+        // Attribute lookup table
+        int* attributes = NULL;
+        if(texts[i].spans && texts[i].spanCount) {
+            attributes = malloc(total * sizeof(int));
+            for(int j = 0; j < total; j++) 
+            {
+                attributes[j] = -1;
+            }
+            for(int j = 0; j < texts[i].spanCount; j++) {
+                for(int k = texts[i].spans[j].startIndex; k <= texts[i].spans[j].endIndex; k++) {
+                    attributes[k] = j;
+                }
+            }
+        }
+        for(int j = startIdx; j < lines.count; j++) {
+            blurg_measure_line(blurg, &texts[i], attributes, &lines, breaks, j, maxWidth);
+            if(lines.data[j].width > alignWidth) {
+                alignWidth = lines.data[j].width;
+            }
+            if(lines.data[j].width > w) {
+                w = lines.data[j].width;
+            }
+            h += lines.data[j].lineHeight;
+        }
+        if(attributes)
+            free(attributes);
+        free(breaks);
+    }
+    
+    // adjust for alignment
+    if(hasAlign && width) {
+        for(int i = 0; i < lines.count; i++) {
+            int pIdx = lines.data[i].paraIndex;
+            if(lines.data[i].isBreak ||
+               texts[pIdx].alignment == blurg_align_left) {
+               continue;
+            }
+            float offsetW = 0;
+            if(texts[pIdx].alignment == blurg_align_right) {
+                offsetW = (alignWidth - lines.data[i].width);
+            }
+            if(texts[pIdx].alignment == blurg_align_center) {
+                offsetW = (alignWidth / 2.0) - (lines.data[i].width / 2.0);
+            }
+            if(offsetW + lines.data[i].width > w) {
+                w = offsetW + lines.data[i].width;
+            }
+        }
+    }
+
+    list_text_line_free(&lines);
+    if(width) {
+        *width = w;
+    }
+    if(height) {
+        *height = h;
+    }
+}
+
+BLURGAPI void blurg_measure_string(blurg_t *blurg, blurg_font_t *font, float size, const char *text, float *width, float *height)
 {
     blurg_formatted_text_t formatted = {
         .defaultFont = font,
         .defaultSize = size,
-        .defaultColor = color,
+        .defaultColor = 0xFFFFFFFF,
         .encoding = blurg_encoding_utf8,
         .spanCount = 0,
         .spans = NULL,
         .text = text,
         .alignment = blurg_align_left,
     };
-    return blurg_build_formatted(blurg, &formatted, 0, rectCount);
+    return blurg_measure_formatted(blurg, &formatted, 1, 0, width, height);
+}
+
+BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, const uint16_t *text, float *width, float *height)
+{
+    blurg_formatted_text_t formatted = {
+        .defaultFont = font,
+        .defaultSize = size,
+        .defaultColor = 0xFFFFFFFF,
+        .encoding = blurg_encoding_utf16,
+        .spanCount = 0,
+        .spans = NULL,
+        .text = text,
+        .alignment = blurg_align_left,
+    };
+    return blurg_measure_formatted(blurg, &formatted, 1, 0, width, height);
+}
+
+BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int* rectCount, float *width, float *height)
+{
+    blurg_formatted_text_t formatted = {
+        .defaultFont = font,
+        .defaultSize = size,
+        .defaultColor = color,
+        .defaultShadow = BLURG_NO_SHADOW,
+        .defaultUnderline = BLURG_NO_UNDERLINE,
+        .encoding = blurg_encoding_utf8,
+        .spanCount = 0,
+        .spans = NULL,
+        .text = text,
+        .alignment = blurg_align_left,
+    };
+    blurg_rect_t *retval = blurg_build_formatted(blurg, &formatted, 1, 0, rectCount, width, height);
+    return retval;
+}
+
+BLURGAPI blurg_rect_t* blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const uint16_t *text, int* rectCount, float *width, float *height)
+{
+    blurg_formatted_text_t formatted = {
+        .defaultFont = font,
+        .defaultSize = size,
+        .defaultColor = color,
+        .defaultShadow = BLURG_NO_SHADOW,
+        .defaultUnderline = BLURG_NO_UNDERLINE,
+        .encoding = blurg_encoding_utf16,
+        .spanCount = 0,
+        .spans = NULL,
+        .text = text,
+        .alignment = blurg_align_left,
+    };
+    blurg_rect_t *retval = blurg_build_formatted(blurg, &formatted, 1, 0, rectCount, width, height);
+    return retval;
 }
 
 BLURGAPI void blurg_free_rects(blurg_rect_t *rects)

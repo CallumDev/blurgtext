@@ -13,6 +13,11 @@ add_library(blurgtext SHARED
     src/util.c
 )
 
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    #remove lib prefix on windows mingw
+    set_target_properties(blurgtext PROPERTIES PREFIX "")
+endif()
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU" AND BT_MINGW_BUNDLE_LIBGCC)
     # link libgcc/libstdc++ into our .dll
     target_link_options(blurgtext PRIVATE -static-libgcc -static-libstdc++ -static)
@@ -47,18 +52,23 @@ configure_file(deps/libraqm/src/raqm-version.h.in raqm-version.h)
 
 if(WIN32)
     include(ExternalProject)
+
+    set(freetype_lib_name "libfreetype.a")
+    set(harfbuzz_lib_name "libharfbuzz.a")
+
     ExternalProject_Add(FT_HB_PROJECT
         SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/deps/ft-hb-bundle"
+        BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${freetype_lib_name} <INSTALL_DIR>/lib/${harfbuzz_lib_name}
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
         -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+        -G ${CMAKE_GENERATOR}
     )
     ExternalProject_Get_Property(FT_HB_PROJECT INSTALL_DIR)
     set(FT_HB_INSTALL_DIR ${INSTALL_DIR})
 
-    set(freetype_lib_name "libfreetype.a")
-    set(harfbuzz_lib_name "libharfbuzz.a")
+    
 
     add_library(FREETYPE_LIBRARY STATIC IMPORTED GLOBAL)
     set_property(TARGET FREETYPE_LIBRARY PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${FT_HB_INSTALL_DIR}/include/freetype2")

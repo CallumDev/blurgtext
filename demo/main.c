@@ -114,7 +114,7 @@ static void drawRects(blurg_rect_t *rects, int count, int x, int y)
 static void drawString(blurg_t* blurg, blurg_font_t *font, const char *text, int x, int y)
 {
     int count;
-    blurg_rect_t *rects = blurg_build_string(blurg, font, 19.0, 0xFF0000FF, text, &count);
+    blurg_rect_t *rects = blurg_build_string(blurg, font, 24.0, 0xFF0000FF, text, &count, NULL, NULL);
     drawRects(rects, count, x, y);
     blurg_free_rects(rects);
 }
@@ -248,9 +248,14 @@ int main(int argc, char* argv[])
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
 
-    drawString(blurg, font, "Hello World!\nNewline test", 8, 8);
-    drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BLACK, 0), "WEIGHT TEST", 400, 8);
     char strBuffer[1000];
+    float testW, testH;
+    blurg_measure_string(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), 24.0, "ACDEFG", &testW, &testH);
+    snprintf(strBuffer, 1000, "size of ABCDEFG %f, %f", testW, testH);
+    drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), strBuffer, 350, 400);
+
+    drawString(blurg, font, "Hello World!\nNewline test", 8, 8);
+    drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), "Hello World from native C", 400, 8);
     blurg_font_t *med = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0);
     snprintf(strBuffer, 1000, "medium fallback\n(actual: %d weight, %d italic)", blurg_font_get_weight(med), blurg_font_get_italic(med));
     drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0), strBuffer, 400, 100);
@@ -304,7 +309,7 @@ int main(int argc, char* argv[])
     };
 
     int fcount;
-    blurg_rect_t* formattedRects = blurg_build_formatted(blurg, &formatted, 350, &fcount);
+    blurg_rect_t* formattedRects = blurg_build_formatted(blurg, &formatted, 1, 350, &fcount, NULL, NULL);
     drawRects(formattedRects, fcount, 8, 100);
     blurg_free_rects(formattedRects);
 
@@ -322,7 +327,7 @@ int main(int argc, char* argv[])
         .encoding = blurg_encoding_utf16,
     };
 
-    formattedRects = blurg_build_formatted(blurg, &utf16, 350, &fcount);
+    formattedRects = blurg_build_formatted(blurg, &utf16, 1, 350, &fcount, NULL, NULL);
     drawRects(formattedRects, fcount, 200, 100);
     blurg_free_rects(formattedRects);
 

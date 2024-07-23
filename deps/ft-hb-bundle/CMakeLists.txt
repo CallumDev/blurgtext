@@ -1,20 +1,25 @@
  cmake_minimum_required(VERSION 3.15)
  project(ft-hb-bundle)
 
+ # Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+ cmake_policy(SET CMP0135 NEW)
+endif()
+
  SET(FREETYPE_URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz")
  SET(HARFBUZZ_URL "https://github.com/harfbuzz/harfbuzz/releases/download/9.0.0/harfbuzz-9.0.0.tar.xz")
- if(MSVC)
-        if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-            set(freetype_lib_name freetyped.lib)
-            set(harfbuzz_lib_name harfbuzzd.lib)
-        else()
-            set(freetype_lib_name freetype.lib)
-            set(harfbuzz_lib_name harfbuzz.lib)
-        endif()
+if(MSVC)
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(freetype_lib_name freetyped.lib)
+        set(harfbuzz_lib_name harfbuzzd.lib)
     else()
-        set(freetype_lib_name libfreetype.a)
-        set(harfbuzz_lib_name libharfbuzz.a)
+        set(freetype_lib_name freetype.lib)
+        set(harfbuzz_lib_name harfbuzz.lib)
     endif()
+else()
+    set(freetype_lib_name libfreetype.a)
+    set(harfbuzz_lib_name libharfbuzz.a)
+endif()
     list(APPEND freetype_byproduct
         <INSTALL_DIR>/lib/${freetype_lib_name}
     )
@@ -26,6 +31,7 @@
     ExternalProject_Add(
         FREETYPE_NO_HARFBUZZ
         URL "${FREETYPE_URL}"
+        BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${freetype_byproduct}
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -35,7 +41,6 @@
         -DFT_DISABLE_PNG=True
         -DFT_DISABLE_BROTLI=True
         -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}
-        BUILD_BYPRODUCTS ${freetype_byproduct}
     )
 
     ExternalProject_Get_Property(FREETYPE_NO_HARFBUZZ install_dir)
@@ -45,6 +50,7 @@
     ExternalProject_Add(
         HARFBUZZ_PROJECT
         URL "${HARFBUZZ_URL}"
+        BUILD_BYPRODUCTS ${harfbuzz_byproduct}
         DEPENDS FREETYPE_NO_HARFBUZZ
         CMAKE_ARGS
         -DCMAKE_PREFIX_PATH=${FREETYPE_NO_HARFBUZZ_DIR}
@@ -52,7 +58,7 @@
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
         -DHB_HAVE_FREETYPE=On
         -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}
-        BUILD_BYPRODUCTS ${harfbuzz_byproduct}
+        -G ${CMAKE_GENERATOR}
     )
 
     ExternalProject_Get_Property(HARFBUZZ_PROJECT INSTALL_DIR)
@@ -68,6 +74,7 @@
         FREETYPE_PROJECT
         URL "${FREETYPE_URL}"
         DEPENDS HARFBUZZ_PROJECT
+        BUILD_BYPRODUCTS ${freetype_byproduct}
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -79,7 +86,7 @@
         -DFT_DISABLE_PNG=True
         -DFT_DISABLE_BROTLI=True
         -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}
-        BUILD_BYPRODUCTS ${freetype_byproduct}
+        -G ${CMAKE_GENERATOR}
     )
 
     ExternalProject_Get_Property(FREETYPE_PROJECT INSTALL_DIR)
