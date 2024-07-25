@@ -3,6 +3,15 @@
 #include <ctype.h>
 #include <stdlib.h>
 
+size_t utf16_strlen(uint16_t *text)
+{
+    size_t sz = 0;
+    while(*text++) {
+        sz++;
+    }
+    return sz;
+}
+
 char *strlower(const char *name, int *length)
 {
     char *lw = strdup(name);

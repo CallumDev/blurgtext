@@ -6,6 +6,8 @@
 #include "util.h"
 #include <math.h>
 
+#define LAYER_MAX (4)
+
 DEFINE_LIST(blurg_rect_t);
 IMPLEMENT_LIST(blurg_rect_t);
 
@@ -16,12 +18,29 @@ typedef struct {
     float width;
     float lineHeight;
     int paraIndex;
-    list_blurg_rect_t rects;
+    int rectStarts[LAYER_MAX];
+    int rectCounts[LAYER_MAX];
 } text_line;
 
 DEFINE_LIST(text_line);
 IMPLEMENT_LIST(text_line);
 
+typedef struct {
+    int active;
+    blurg_color_t color;
+    float xStart;
+    float pos;
+    int offset;
+} active_underline;
+
+typedef struct {
+    list_text_line *lines;
+    int l_shadow;
+    int l_underline;
+    int l_glyphs;
+    list_blurg_rect_t layers[LAYER_MAX];
+    int layerCount;
+} build_context;
 
 BLURGAPI blurg_t *blurg_create(blurg_texture_allocate textureAllocate, blurg_texture_update textureUpdate)
 {
@@ -46,15 +65,6 @@ BLURGAPI void blurg_destroy(blurg_t *blurg)
     FT_Done_Library(blurg->library);
     font_manager_destroy(blurg);
     free(blurg);
-}
-
-static size_t utf16_strlen(utf16_t *text)
-{
-    size_t sz = 0;
-    while(*text++) {
-        sz++;
-    }
-    return sz;
 }
 
 static void blurg_get_lines(const void *text, int* textLen, blurg_encoding_t encoding, list_text_line *lines, char **breaks, int paraIndex)
@@ -94,14 +104,6 @@ static void blurg_get_lines(const void *text, int* textLen, blurg_encoding_t enc
 #define IDX_UNDERLINE(i) ((!attributes || attributes[(i)] == -1) ? text->defaultUnderline : text->spans[attributes[(i)]].underline)
 #define IDX_SHADOW(i) ((!attributes || attributes[(i)] == -1) ? text->defaultShadow : text->spans[attributes[(i)]].shadow)
 
-typedef struct {
-    int active;
-    blurg_color_t color;
-    float xStart;
-    float pos;
-    int offset;
-} active_underline;
-
 static void add_underline(blurg_t *b, active_underline ul, float xEnd, list_blurg_rect_t *rb, float y)
 {
     list_blurg_rect_t_add(rb, (blurg_rect_t){
@@ -121,7 +123,7 @@ static void add_underline(blurg_t *b, active_underline ul, float xEnd, list_blur
 static void raqm_to_rects(
     blurg_t *blurg, 
     raqm_t *rq, 
-    list_blurg_rect_t *rb, 
+    build_context *ctx,
     float *x, 
     float *y, 
     size_t maxGlyph, 
@@ -132,129 +134,93 @@ static void raqm_to_rects(
 {
     size_t count;
     raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
-    list_blurg_rect_t_ensure_size(rb, rb->count + count); //optimize to save reallocs
+
     active_underline ul = { .active = 0 };
-    // draw shadows
-    if(hasShadow) {
-        float shadowX = *x;
-        float shadowY = *y;
-        for(int i = 0; i < count && i < maxGlyph; i++) {
-            blurg_shadow_t shadow = IDX_SHADOW(glyphs[i].cluster);
-            if(!shadow.pixels) {
-                if(ul.active) {
-                    add_underline(blurg, ul, shadowX, rb, shadowY);
-                    ul.active = 0;
-                }
-                shadowX += glyphs[i].x_advance / 64.0;
-                shadowY += glyphs[i].y_advance / 64.0;
-                continue;
-            }
-            //glyph shadow
-            blurg_glyph vis;
-            blurg_font_t *font = blurg_from_freetype(glyphs[i].ftface);
-            glyphatlas_get(blurg, font, glyphs[i].index, &vis);
-            list_blurg_rect_t_add(rb, (blurg_rect_t) {
-                .texture = blurg->packed.pages[vis.texture],
-                .u0 = vis.srcX / (float)BLURG_TEXTURE_SIZE,
-                .v0 = vis.srcY / (float)BLURG_TEXTURE_SIZE,
-                .u1 = (vis.srcX + vis.srcW) / (float)BLURG_TEXTURE_SIZE,
-                .v1 = (vis.srcY + vis.srcH) / (float)BLURG_TEXTURE_SIZE,
-                .x = shadow.pixels + (int)(shadowX + (glyphs[i].x_offset / 64.0) + vis.offsetLeft),
-                .y = shadow.pixels + (int)(shadowY + (glyphs[i].y_offset / 64.0) - vis.offsetTop),
-                .width = vis.srcW,
-                .height = vis.srcH,
-                .color = shadow.color, 
-            });
-            if(!hasUnderline)
-                continue;
-            //underline shadow
-            blurg_underline_t underline = IDX_UNDERLINE(glyphs[i].cluster);
-            float upos;
-            if(underline.enabled) {
-                float sz = (font->setSize / 64.0);
-                upos = (font->face->underline_position / (64.0 * 64.0)) * sz;
-                upos = -roundf(upos);
-            }
-            if(!ul.active && underline.enabled) {
-                ul.active = 1;
-                ul.xStart = shadowX;
-                ul.color = shadow.color;
-                ul.offset = shadow.pixels;
-            }
-            else if(ul.active && !underline.enabled) {
-                add_underline(blurg, ul, shadowX, rb, shadowY);
-                ul.active = 0;
-            }
-            else if (ul.active && underline.enabled && (
-                shadow.color != ul.color ||
-                shadow.pixels != ul.offset ||
-                upos != ul.pos)) {
-                add_underline(blurg, ul, shadowX, rb, shadowY);
-                ul.xStart = shadowX;
-                ul.color = shadow.color;
-                ul.offset = shadow.pixels;
-            }
-            shadowX += glyphs[i].x_advance / 64.0;
-            shadowY += glyphs[i].y_advance / 64.0;
-        }
-        if(ul.active) {
-            add_underline(blurg, ul, shadowX, rb, *y);
-        }
-        ul.active = 0;
-    }
-    
-    // draw underlines (not shadowed)
-    if(hasUnderline) {
-        float underlineX = *x;
-        float underlineY = *y;
-        for(int i = 0; i < count && i < maxGlyph; i++) {
-            blurg_underline_t underline = IDX_UNDERLINE(glyphs[i].cluster);
-            blurg_font_t *font;
-            uint32_t ucolor;
-            float upos;
+    active_underline shadow_ul = { .active = 0 };
+
+    for(int i = 0; i < count && i < maxGlyph; i++) 
+    {
+        blurg_glyph vis;
+        blurg_font_t *font = blurg_from_freetype(glyphs[i].ftface);
+        glyphatlas_get(blurg, font, glyphs[i].index, &vis);
+        blurg_underline_t underline = BLURG_NO_UNDERLINE;
+        uint32_t ucolor;
+        float upos;
+        if(hasUnderline) {
+            underline = IDX_UNDERLINE(glyphs[i].cluster);
             if(underline.enabled) {
                 ucolor = underline.useColor ? underline.color : IDX_COLOR(glyphs[i].cluster);
-                font = blurg_from_freetype(glyphs[i].ftface);
                 float sz = (font->setSize / 64.0);
                 upos = (font->face->underline_position / (64.0 * 64.0)) * sz;
                 upos = -roundf(upos);
             }
             if(!ul.active && underline.enabled) {
                 ul.active = 1;
-                ul.xStart = underlineX;
-                ul.color = ucolor;
-                ul.offset = 0;
-                ul.pos = upos;
-            }
-            else if(ul.active && !underline.enabled) {
-                add_underline(blurg, ul, underlineX, rb, underlineY);
-                ul.active = 0;
-            }
-            else if (ul.active && underline.enabled && (
-                ucolor != ul.color ||
-                upos != ul.pos)) {
-                add_underline(blurg, ul, underlineX, rb, underlineY);
                 ul.xStart = *x;
                 ul.color = ucolor;
                 ul.offset = 0;
                 ul.pos = upos;
             }
-            underlineX += glyphs[i].x_advance / 64.0;
-            underlineY += glyphs[i].y_advance / 64.0;
+            else if(ul.active && !underline.enabled) {
+                add_underline(blurg, ul, *x, &ctx->layers[ctx->l_underline], *y);
+                ul.active = 0;
+            }
+            else if (ul.active && underline.enabled && (
+                ucolor != ul.color ||
+                upos != ul.pos)) {
+                add_underline(blurg, ul, *x, &ctx->layers[ctx->l_underline], *y);
+                ul.xStart = *x;
+                ul.color = ucolor;
+                ul.offset = 0;
+                ul.pos = upos;
+            }
         }
-        if(ul.active) {
-            add_underline(blurg, ul, underlineX, rb, underlineY);
+        if(hasShadow) {
+            blurg_shadow_t shadow = IDX_SHADOW(glyphs[i].cluster);
+            if(shadow.pixels) {
+                list_blurg_rect_t_add(&ctx->layers[ctx->l_shadow], (blurg_rect_t) {
+                    .texture = blurg->packed.pages[vis.texture],
+                    .u0 = vis.srcX / (float)BLURG_TEXTURE_SIZE,
+                    .v0 = vis.srcY / (float)BLURG_TEXTURE_SIZE,
+                    .u1 = (vis.srcX + vis.srcW) / (float)BLURG_TEXTURE_SIZE,
+                    .v1 = (vis.srcY + vis.srcH) / (float)BLURG_TEXTURE_SIZE,
+                    .x = shadow.pixels + (int)(*x + (glyphs[i].x_offset / 64.0) + vis.offsetLeft),
+                    .y = shadow.pixels + (int)(*y + (glyphs[i].y_offset / 64.0) - vis.offsetTop),
+                    .width = vis.srcW,
+                    .height = vis.srcH,
+                    .color = shadow.color,
+                });
+                //shadow underline
+                if(!shadow_ul.active && underline.enabled) {
+                    shadow_ul.active = 1;
+                    shadow_ul.xStart = *x;
+                    shadow_ul.color = shadow.color;
+                    shadow_ul.offset = shadow.pixels;
+                    shadow_ul.pos = upos;
+                }
+                else if(shadow_ul.active && !underline.enabled) {
+                    add_underline(blurg, shadow_ul, *x, &ctx->layers[ctx->l_shadow], *y);
+                    shadow_ul.active = 0;
+                }
+                else if (shadow_ul.active && underline.enabled && (
+                    shadow.color != shadow_ul.color ||
+                    shadow.pixels != shadow_ul.offset ||
+                    upos != shadow_ul.pos)) {
+                    add_underline(blurg, shadow_ul, *x, &ctx->layers[ctx->l_shadow], *y);
+                    shadow_ul.xStart = *x;
+                    shadow_ul.color = shadow.color;
+                    shadow_ul.offset = shadow.pixels;
+                    shadow_ul.pos = upos;
+                }
+            } 
+            else {
+                if(shadow_ul.active) {
+                    add_underline(blurg, shadow_ul, *x, &ctx->layers[ctx->l_shadow], *y);
+                    shadow_ul.active = 0;
+                }
+            }
         }
-    }
-
-    // finally, draw colour glyphs on top
-    
-    for(int i = 0; i < count && i < maxGlyph; i++) {
-
-        blurg_glyph vis;
-        blurg_font_t *font = blurg_from_freetype(glyphs[i].ftface);
-        glyphatlas_get(blurg, font, glyphs[i].index, &vis);
-        list_blurg_rect_t_add(rb, (blurg_rect_t) {
+        list_blurg_rect_t_add(&ctx->layers[ctx->l_glyphs], (blurg_rect_t) {
             .texture = blurg->packed.pages[vis.texture],
             .u0 = vis.srcX / (float)BLURG_TEXTURE_SIZE,
             .v0 = vis.srcY / (float)BLURG_TEXTURE_SIZE,
@@ -269,7 +235,14 @@ static void raqm_to_rects(
         *x += glyphs[i].x_advance / 64.0;
         *y += glyphs[i].y_advance / 64.0;
     }
-    
+
+    // finalize underlines
+    if(ul.active) {
+        add_underline(blurg, ul, *x, &ctx->layers[ctx->l_underline], *y);
+    }
+    if(shadow_ul.active) {
+        add_underline(blurg, shadow_ul, *x, &ctx->layers[ctx->l_shadow], *y);
+    }
 }
 
 static void wrap_line(raqm_glyph_t *glyphs, char* breaks, int *charCount, size_t *glyphCount, float x, float maxWidth)
@@ -333,7 +306,7 @@ static void wrap_line(raqm_glyph_t *glyphs, char* breaks, int *charCount, size_t
 
 // returns the length of text shaped/turned into rects for current maxWidth
 static int blurg_shape_chunk(blurg_t *blurg, const void *str, char *breaks, int len, float size,
-    int* attributes, blurg_formatted_text_t *text, list_blurg_rect_t *rb, float *x, float *y, float maxWidth)
+    int* attributes, blurg_formatted_text_t *text, build_context *ctx, float *x, float *y, float maxWidth)
 {
     raqm_t* rq = raqm_create();
     if(text->encoding == blurg_encoding_utf16)
@@ -361,7 +334,7 @@ static int blurg_shape_chunk(blurg_t *blurg, const void *str, char *breaks, int 
     int charCount = len;
     raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
     wrap_line(glyphs, breaks, &charCount, &count, *x, maxWidth);
-    raqm_to_rects(blurg, rq, rb, x, y, count, text, attributes, hasShadows < charCount, hasUnderlines < charCount);
+    raqm_to_rects(blurg, rq, ctx, x, y, count, text, attributes, hasShadows < charCount, hasUnderlines < charCount);
     raqm_destroy(rq);
     return charCount;
 }
@@ -391,6 +364,7 @@ static void split_line(list_text_line *lines, int lineIndex, int splitPoint)
 static void blurg_wrap_shape_line(
     blurg_t *blurg, 
     blurg_formatted_text_t *text, 
+    build_context *ctx, 
     int* attributes, 
     list_text_line *lines,
     char *breaks,
@@ -404,15 +378,19 @@ static void blurg_wrap_shape_line(
         blurg_font_t *fnt = IDX_FONT(lines->data[lineIndex].textStart);
         font_use_size(fnt, IDX_SIZE(lines->data[lineIndex].textStart));
         lines->data[lineIndex].lineHeight = fnt->lineHeight;
-        lines->data[lineIndex].rects.count = 0;
-        lines->data[lineIndex].rects.data = NULL;
+        for(int i = 0; i < ctx->layerCount; i++) {
+            lines->data[lineIndex].rectStarts[i] = 0;
+            lines->data[lineIndex].rectCounts[i] = 0;
+        }
+        return;
     }
-
-    list_blurg_rect_t shapeBuffer;
-    list_blurg_rect_t_init(&shapeBuffer, lines->data[lineIndex].textCount);
 
     int start = lines->data[lineIndex].textStart;
     int count = lines->data[lineIndex].textCount;
+
+    for(int i = 0; i < ctx->layerCount; i++) {
+        lines->data[lineIndex].rectStarts[i] = ctx->layers[i].count;
+    }
 
     int last = 0;
     
@@ -441,7 +419,7 @@ static void blurg_wrap_shape_line(
                     currentSize, 
                     ATTRIBUTE_OFFSET(start + last), 
                     text, 
-                    &shapeBuffer, &x, &y, maxWidth);
+                    ctx, &x, &y, maxWidth);
                 if(actualCount != shapeCount) {
                     split_line(lines, lineIndex, last + actualCount);
                     // early exit
@@ -469,7 +447,7 @@ static void blurg_wrap_shape_line(
             currentSize, 
             ATTRIBUTE_OFFSET(start + last), 
             text, 
-            &shapeBuffer, &x, &y, maxWidth);
+            ctx, &x, &y, maxWidth);
         if(actualCount != shapeCount) {
             split_line(lines, lineIndex, last + actualCount);
         }
@@ -477,14 +455,19 @@ static void blurg_wrap_shape_line(
 
 
     finish:
-    // apply ascender for line
-    for(int i = 0; i < shapeBuffer.count; i++) {
-        shapeBuffer.data[i].y += maxAscender;
+    // apply ascender for line and
+    // set glyph counts
+    for(int i = 0; i < ctx->layerCount; i++) {
+        int st = lines->data[lineIndex].rectStarts[i];
+        int c = ctx->layers[i].count - st; 
+        lines->data[lineIndex].rectCounts[i] = c;
+        for(int j = 0; j < c; j++) {
+            ctx->layers[i].data[st + j].y += maxAscender;
+        }
     }
     // set metrics
     lines->data[lineIndex].width = x;
     lines->data[lineIndex].lineHeight = maxLineHeight;
-    lines->data[lineIndex].rects = shapeBuffer;
 }
 
 static int blurg_measure_chunk(blurg_t *blurg, const void *str, char *breaks, int len, float size,
@@ -531,8 +514,6 @@ static void blurg_measure_line(
         blurg_font_t *fnt = IDX_FONT(lines->data[lineIndex].textStart);
         font_use_size(fnt, IDX_SIZE(lines->data[lineIndex].textStart));
         lines->data[lineIndex].lineHeight = fnt->lineHeight;
-        lines->data[lineIndex].rects.count = 0;
-        lines->data[lineIndex].rects.data = NULL;
         return;
     }
 
@@ -609,6 +590,8 @@ static void blurg_measure_line(
 #undef TEXT_OFFSET
 #undef ATTRIBUTE_OFFSET
 
+
+
 typedef struct _paragraph_info {
     int lineOffset;
     int total;
@@ -629,13 +612,23 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
     paragraph_info* paragraphs = ALLOC_GUARDED(count, sizeof(paragraph_info));
 
     // Build info and process mandatory line breaks
-    int hasAlign = 0;
+    // Perform allocation of layers
+    int hasShadow = 0;
+    int hasUnderline = 0;
+
     for(int i = 0; i < count; i++) {
         paragraphs[i].lineOffset = lines.count;
         blurg_get_lines(texts[i].text, &paragraphs[i].total, texts[i].encoding, &lines, &paragraphs[i].breaks, i);
         sumParagraphs += paragraphs[i].total;
-        if(paragraphs[i].total && texts[i].alignment != blurg_align_left) {
-            hasAlign = 1;
+        if(!paragraphs[i].total) {
+            paragraphs[i].attributes = NULL;
+            continue;
+        }
+        if(texts[i].defaultShadow.pixels) {
+            hasShadow = 1;
+        }
+        if(texts[i].defaultUnderline.enabled) {
+            hasUnderline = 1;
         }
         if(texts[i].spans && texts[i].spanCount) {
             int* attributes = malloc(paragraphs[i].total * sizeof(int));
@@ -645,6 +638,12 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
             }
             for(int j = 0; j < texts[i].spanCount; j++) 
             {
+                if(texts[i].spans[j].underline.enabled) {
+                    hasUnderline = 1;
+                }
+                if(texts[i].spans[j].shadow.pixels) {
+                    hasShadow = 1;
+                }
                 for(int k = texts[i].spans[j].startIndex; k <= texts[i].spans[j].endIndex; k++) 
                 {
                     attributes[k] = j;
@@ -656,28 +655,36 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
         }
     }
 
+    build_context ctx;
+    ctx.lines = &lines;
+    ctx.layerCount = 0;
+    if(hasShadow) {
+        ctx.l_shadow = 0;
+        ctx.layerCount++;
+        list_blurg_rect_t_init(&ctx.layers[0], sumParagraphs);
+    }
+    if(hasUnderline) {
+        ctx.l_underline = ctx.layerCount++;
+        list_blurg_rect_t_init(&ctx.layers[ctx.l_underline], ctx.l_underline == 0 ? sumParagraphs : 8);
+    }
+    ctx.l_glyphs = ctx.layerCount++;
+    list_blurg_rect_t_init(&ctx.layers[ctx.l_glyphs], sumParagraphs);
+
+
     float alignWidth = maxWidth;
-    if(hasAlign) {
-        for(int i = 0; i < lines.count; i++) {
-            int para = lines.data[i].paraIndex;
-            blurg_wrap_shape_line(blurg, &texts[para], paragraphs[para].attributes, &lines, paragraphs[para].breaks, i, maxWidth);
-            if(lines.data[i].width > alignWidth) {
-                alignWidth = lines.data[i].width;
-            }
+    for(int i = 0; i < lines.count; i++) {
+        int para = lines.data[i].paraIndex;
+        blurg_wrap_shape_line(blurg, &texts[para], &ctx, paragraphs[para].attributes, &lines, paragraphs[para].breaks, i, maxWidth);
+        if(lines.data[i].width > alignWidth) {
+            alignWidth = lines.data[i].width;
         }
     }
 
-    // lines to shaped text
-    list_blurg_rect_t rects;
-    list_blurg_rect_t_init(&rects, sumParagraphs);
+    // position lines
     float y = 0;
     float w = 0;
     for(int i = 0; i < lines.count; i++) {
         int pIdx = lines.data[i].paraIndex;
-        if(!hasAlign) //we don't need to allocate line buffers upfront if left aligned
-        {
-            blurg_wrap_shape_line(blurg, &texts[pIdx], paragraphs[pIdx].attributes, &lines, paragraphs[pIdx].breaks, i, maxWidth);
-        }
         if(!lines.data[i].isBreak) {
             // copy rects
             float offsetW = 0;
@@ -687,17 +694,18 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
             if(texts[pIdx].alignment == blurg_align_center) {
                 offsetW = (alignWidth / 2.0) - (lines.data[i].width / 2.0);
             }
-            for(int j = 0; j < lines.data[i].rects.count; j++) {
-                //process alignment
-                lines.data[i].rects.data[j].x += offsetW;
-                //position line
-                lines.data[i].rects.data[j].y += y;
+            for(int j = 0; j < ctx.layerCount; j++) {
+                int start = lines.data[i].rectStarts[j];
+                int count = lines.data[i].rectCounts[j];
+                for(int k = 0; k < count; k++) {
+                    //process alignment
+                    ctx.layers[j].data[start + k].x += offsetW;
+                    //position line
+                    ctx.layers[j].data[start + k].y += y;
+                }
             }
-
             if((lines.data[i].width + offsetW) > w)
                 w = (lines.data[i].width + offsetW);
-            list_blurg_rect_t_add_range(&rects, &lines.data[i].rects);
-            list_blurg_rect_t_free(&lines.data[i].rects);
         }
         y += lines.data[i].lineHeight;
     }
@@ -710,17 +718,29 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
     DEALLOC_GUARDED(paragraphs, count, sizeof(paragraph_info));
     list_text_line_free(&lines);
     
+    int extraCount = 0;
+    for(int i = 1; i < ctx.layerCount; i++) {
+        extraCount += ctx.layers[i].count;
+    }
+    // one resize only
+    list_blurg_rect_t_ensure_size(&ctx.layers[0], ctx.layers[0].count + extraCount);
+    // flatten layers
+    for(int i = 1; i < ctx.layerCount; i++) {
+        list_blurg_rect_t_add_range(&ctx.layers[0], &ctx.layers[i]);
+        list_blurg_rect_t_free(&ctx.layers[i]);
+    }
+
     if(width)
         *width = w;
     if(height)
         *height = y;
 
-    if(rects.count > 0) {
-        list_blurg_rect_t_shrink(&rects);
-        *rectCount = rects.count;
-        return rects.data;
+    if(ctx.layers[0].count > 0) {
+        list_blurg_rect_t_shrink(&ctx.layers[0]);
+        *rectCount = ctx.layers[0].count;
+        return ctx.layers[0].data;
     } else {
-        list_blurg_rect_t_free(&rects);
+        list_blurg_rect_t_free(&ctx.layers[0]);
         *rectCount = 0;
         return NULL;
     }
