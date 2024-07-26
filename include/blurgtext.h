@@ -30,7 +30,7 @@ typedef struct _blurg blurg_t;
 
 typedef struct _blurg_font blurg_font_t;
 
-// Usually a 32-bit RGBA color, representing 0xRRGGBBAA.
+// Usually a 32-bit RGBA color, representing 0xAARRGGBB.
 // This is not modified by blurgtext.
 typedef uint32_t blurg_color_t;
 #define BLURG_RGBA(r,g,b,a) (\
