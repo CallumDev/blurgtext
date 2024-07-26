@@ -78,6 +78,7 @@ typedef struct _blurg_style_span {
     int endIndex;
     blurg_font_t *font;
     float fontSize;
+    blurg_color_t background;
     blurg_color_t color;
     blurg_underline_t underline;
     blurg_shadow_t shadow;
@@ -103,6 +104,7 @@ typedef struct _blurg_formatted_text {
   int spanCount;
   float defaultSize;
   blurg_font_t* defaultFont;
+  blurg_color_t defaultBackground;
   blurg_color_t defaultColor;
   blurg_underline_t defaultUnderline;
   blurg_shadow_t defaultShadow;

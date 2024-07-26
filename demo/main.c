@@ -262,12 +262,13 @@ int main(int argc, char* argv[])
     blurg_font_t *medItalic = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 1);
     snprintf(strBuffer, 1000, "medium-italic fallback\n(actual: %d weight, %d italic)", blurg_font_get_weight(medItalic), blurg_font_get_italic(medItalic));
     drawString(blurg, medItalic, strBuffer, 400, 200);
-    blurg_style_span_t spans[3];
-    memset(spans, 0, sizeof(blurg_style_span_t) * 2);
+    blurg_style_span_t spans[5];
+    memset(spans, 0, sizeof(blurg_style_span_t) * 5);
     spans[0].startIndex = 5;
     spans[0].endIndex = 8;
     spans[0].font = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_REGULAR, 1); //italic
     spans[0].fontSize = 90.0;
+    spans[0].background = 0;
     spans[0].color = 0xFFFF0000;
     spans[0].shadow = BLURG_NO_SHADOW;
     spans[0].underline = BLURG_UNDERLINED;
@@ -276,6 +277,7 @@ int main(int argc, char* argv[])
     spans[1].endIndex = 16;
     spans[1].font = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 1); //bolditalic
     spans[1].fontSize = 24.0;
+    spans[1].background = 0;
     spans[1].color = BLURG_RGBA(0, 255, 0, 255);
     spans[1].shadow = BLURG_NO_SHADOW;
     spans[1].underline = BLURG_NO_UNDERLINE;
@@ -284,6 +286,7 @@ int main(int argc, char* argv[])
     spans[2].endIndex = 42;
     spans[2].font = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0); //bold
     spans[2].fontSize = 20.0;
+    spans[2].background = 0;
     spans[2].color = BLURG_RGBA(255,0,255,255);
     spans[2].shadow = BLURG_NO_SHADOW;
     spans[2].underline = (blurg_underline_t) { .color = BLURG_RGBA(128, 128, 128, 255), .enabled = 1, .useColor = 1};
@@ -292,18 +295,30 @@ int main(int argc, char* argv[])
     spans[3].endIndex = 58;
     spans[3].font = font;
     spans[3].fontSize = 20.0;
+    spans[3].background = 0;
     spans[3].color = BLURG_RGBA(255,0,0,255);
     spans[3].shadow = (blurg_shadow_t)  {.color = BLURG_RGBA(32, 0, 0, 255), .pixels = 2 };
     spans[3].underline = (blurg_underline_t) { .color = BLURG_RGBA(255, 255, 255, 255), .enabled = 1, .useColor = 1};
+    //background
+    spans[4].startIndex = 75;
+    spans[4].endIndex = 154;
+    spans[4].font = font;
+    spans[4].fontSize = 20.0;
+    spans[4].background = BLURG_RGBA(128, 0, 128, 255);
+    spans[4].color = BLURG_RGBA(128, 255, 128, 255);
+    spans[4].shadow = BLURG_NO_SHADOW;
+    spans[4].underline = BLURG_NO_UNDERLINE;
+
     blurg_formatted_text_t formatted = {
         .text = "This is an extremely long string that we are going to be wrapping based on a maxWidth (350px) amount. Let's have a look and see how we get on.\nManual line break\nABCDEFGHIJKLMNOPQRSTUVWXYZNOWIKNOWMYABCSNEXTTIMEWON'TYOUSINGWITHME",
         .defaultFont = font,
         .defaultSize = 20.0,
         .defaultColor = 0xFFFFFFFF,
+        .defaultBackground = 0,
         .defaultUnderline = BLURG_NO_UNDERLINE,
         .defaultShadow = BLURG_NO_SHADOW,
         .spans = spans,
-        .spanCount = 4,
+        .spanCount = 5,
         .alignment = blurg_align_left,
         .encoding = blurg_encoding_utf8,
     };
@@ -321,6 +336,7 @@ int main(int argc, char* argv[])
         .defaultColor = BLURG_RGBA(0x64, 0x95, 0xED, 0xFF),
         .defaultShadow = { .pixels = 1, .color = BLURG_RGBA(0, 0, 0, 255) },
         .defaultUnderline = BLURG_UNDERLINED,
+        .defaultBackground = BLURG_RGBA(0x00, 0x44, 0x00, 0xFF),
         .spans = NULL,
         .spanCount = 0,
         .alignment = blurg_align_left,

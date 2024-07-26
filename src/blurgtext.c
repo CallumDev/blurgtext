@@ -34,7 +34,14 @@ typedef struct {
 } active_underline;
 
 typedef struct {
+    int active;
+    blurg_color_t color;
+    float xStart;
+} active_background;
+
+typedef struct {
     list_text_line *lines;
+    int l_background;
     int l_shadow;
     int l_underline;
     int l_glyphs;
@@ -101,6 +108,7 @@ static void blurg_get_lines(const void *text, int* textLen, blurg_encoding_t enc
 #define IDX_FONT(i) ((!attributes || attributes[(i)] == -1) ? text->defaultFont : text->spans[attributes[(i)]].font)
 #define IDX_SIZE(i) ((!attributes || attributes[(i)] == -1) ? text->defaultSize : text->spans[attributes[(i)]].fontSize)
 #define IDX_COLOR(i) ((!attributes || attributes[(i)] == -1) ? text->defaultColor : text->spans[attributes[(i)]].color)
+#define IDX_BACKGROUND(i) ((!attributes || attributes[(i)] == -1) ? text->defaultBackground : text->spans[attributes[(i)]].background)
 #define IDX_UNDERLINE(i) ((!attributes || attributes[(i)] == -1) ? text->defaultUnderline : text->spans[attributes[(i)]].underline)
 #define IDX_SHADOW(i) ((!attributes || attributes[(i)] == -1) ? text->defaultShadow : text->spans[attributes[(i)]].shadow)
 
@@ -120,6 +128,22 @@ static void add_underline(blurg_t *b, active_underline ul, float xEnd, list_blur
     });
 }
 
+static void add_background(blurg_t *b, active_background ul, float xEnd, list_blurg_rect_t *rb, float y)
+{
+    list_blurg_rect_t_add(rb, (blurg_rect_t){
+        .texture = rb->count > 0 ? rb->data[rb->count - 1].texture : b->packed.pages[0],
+        .u0 = 0.5 / BLURG_TEXTURE_SIZE, //sample centre of pixel, works better.
+        .u1 = 0.5 / BLURG_TEXTURE_SIZE,
+        .v0 = 0.5 / BLURG_TEXTURE_SIZE,
+        .v1 = 0.5 / BLURG_TEXTURE_SIZE,
+        .x = (int)(ul.xStart),
+        .y = y,
+        .width = (int)(xEnd - ul.xStart),
+        .height = 1,
+        .color = ul.color,
+    });
+}
+
 static void raqm_to_rects(
     blurg_t *blurg, 
     raqm_t *rq, 
@@ -130,13 +154,15 @@ static void raqm_to_rects(
     blurg_formatted_text_t *text, 
     int* attributes,
     int hasShadow,
-    int hasUnderline)
+    int hasUnderline,
+    int hasBackground)
 {
     size_t count;
     raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
 
     active_underline ul = { .active = 0 };
     active_underline shadow_ul = { .active = 0 };
+    active_background bkg = { .active = 0 };
 
     for(int i = 0; i < count && i < maxGlyph; i++) 
     {
@@ -146,6 +172,24 @@ static void raqm_to_rects(
         blurg_underline_t underline = BLURG_NO_UNDERLINE;
         uint32_t ucolor;
         float upos;
+        if(hasBackground) {
+            blurg_color_t background = IDX_BACKGROUND(glyphs[i].cluster);
+            int bEnabled = (background & 0xFF000000) != 0;
+            if(!bkg.active && bEnabled) {
+                bkg.active = 1;
+                bkg.color = background;
+                bkg.xStart = *x;
+            }
+            else if (bkg.active && !bEnabled) {
+                add_background(blurg, bkg, *x, &ctx->layers[ctx->l_background], *y);
+                bkg.active = 0;
+            }
+            else if (bkg.active && bEnabled && bkg.color != background) {
+                add_background(blurg, bkg, *x, &ctx->layers[ctx->l_background], *y);
+                bkg.xStart = *x;
+                bkg.color = background;
+            }
+        }
         if(hasUnderline) {
             underline = IDX_UNDERLINE(glyphs[i].cluster);
             if(underline.enabled) {
@@ -243,6 +287,9 @@ static void raqm_to_rects(
     if(shadow_ul.active) {
         add_underline(blurg, shadow_ul, *x, &ctx->layers[ctx->l_shadow], *y);
     }
+    if(bkg.active) {
+        add_background(blurg, bkg, *x, &ctx->layers[ctx->l_background], *y);
+    }
 }
 
 static void wrap_line(raqm_glyph_t *glyphs, char* breaks, int *charCount, size_t *glyphCount, float x, float maxWidth)
@@ -316,6 +363,7 @@ static int blurg_shape_chunk(blurg_t *blurg, const void *str, char *breaks, int 
     raqm_set_par_direction(rq, RAQM_DIRECTION_DEFAULT);
     int hasShadows = len + 1;
     int hasUnderlines = len + 1;
+    int hasBackground = len + 1;
     for(int i = 0; i < len; i++) {
         blurg_font_t *fontAtIndex = IDX_FONT(i);
         // optimisation. check if there are any shadow/underline attributes
@@ -326,6 +374,9 @@ static int blurg_shape_chunk(blurg_t *blurg, const void *str, char *breaks, int 
         if((hasUnderlines > len) && IDX_UNDERLINE(i).enabled != 0) {
             hasUnderlines = i;
         }
+        if((hasBackground > len) && (IDX_BACKGROUND(i) & 0xFF000000)) {
+            hasBackground = i;
+        }
         font_use_size(fontAtIndex, size);
         raqm_set_freetype_face_range(rq, fontAtIndex->face, i, 1);
     }
@@ -334,7 +385,7 @@ static int blurg_shape_chunk(blurg_t *blurg, const void *str, char *breaks, int 
     int charCount = len;
     raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
     wrap_line(glyphs, breaks, &charCount, &count, *x, maxWidth);
-    raqm_to_rects(blurg, rq, ctx, x, y, count, text, attributes, hasShadows < charCount, hasUnderlines < charCount);
+    raqm_to_rects(blurg, rq, ctx, x, y, count, text, attributes, hasShadows < charCount, hasUnderlines < charCount, hasBackground < charCount);
     raqm_destroy(rq);
     return charCount;
 }
@@ -461,8 +512,14 @@ static void blurg_wrap_shape_line(
         int st = lines->data[lineIndex].rectStarts[i];
         int c = ctx->layers[i].count - st; 
         lines->data[lineIndex].rectCounts[i] = c;
-        for(int j = 0; j < c; j++) {
-            ctx->layers[i].data[st + j].y += maxAscender;
+        if(i == ctx->l_background) {
+            for(int j = 0; j < c; j++) {
+                ctx->layers[i].data[st + j].height = (int)maxLineHeight;
+            }
+        } else {
+            for(int j = 0; j < c; j++) {
+                ctx->layers[i].data[st + j].y += maxAscender;
+            }
         }
     }
     // set metrics
@@ -613,6 +670,7 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
 
     // Build info and process mandatory line breaks
     // Perform allocation of layers
+    int hasBackground = 0;
     int hasShadow = 0;
     int hasUnderline = 0;
 
@@ -630,6 +688,9 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
         if(texts[i].defaultUnderline.enabled) {
             hasUnderline = 1;
         }
+        if(texts[i].defaultBackground & 0xFF000000) {
+            hasBackground = 1;
+        }
         if(texts[i].spans && texts[i].spanCount) {
             int* attributes = malloc(paragraphs[i].total * sizeof(int));
             for(int j = 0; j < paragraphs[i].total; j++) 
@@ -640,6 +701,9 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
             {
                 if(texts[i].spans[j].underline.enabled) {
                     hasUnderline = 1;
+                }
+                if(texts[i].spans[j].background & 0xFF000000) {
+                    hasBackground = 1;
                 }
                 if(texts[i].spans[j].shadow.pixels) {
                     hasShadow = 1;
@@ -658,10 +722,17 @@ BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_tex
     build_context ctx;
     ctx.lines = &lines;
     ctx.layerCount = 0;
-    if(hasShadow) {
-        ctx.l_shadow = 0;
+    if(hasBackground) {
+        ctx.l_background = 0;
         ctx.layerCount++;
         list_blurg_rect_t_init(&ctx.layers[0], sumParagraphs);
+    } else {
+        ctx.l_background = -1;
+    }
+    if(hasShadow) {
+        ctx.l_shadow = ctx.layerCount;
+        ctx.layerCount++;
+        list_blurg_rect_t_init(&ctx.layers[ctx.l_shadow], sumParagraphs);
     }
     if(hasUnderline) {
         ctx.l_underline = ctx.layerCount++;
@@ -869,6 +940,7 @@ BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, fl
         .defaultFont = font,
         .defaultSize = size,
         .defaultColor = color,
+        .defaultBackground = 0,
         .defaultShadow = BLURG_NO_SHADOW,
         .defaultUnderline = BLURG_NO_UNDERLINE,
         .encoding = blurg_encoding_utf8,
@@ -887,6 +959,7 @@ BLURGAPI blurg_rect_t* blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *fo
         .defaultFont = font,
         .defaultSize = size,
         .defaultColor = color,
+        .defaultBackground = 0,
         .defaultShadow = BLURG_NO_SHADOW,
         .defaultUnderline = BLURG_NO_UNDERLINE,
         .encoding = blurg_encoding_utf16,

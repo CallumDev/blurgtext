@@ -6,6 +6,7 @@ namespace BlurgText
         public string Text;
         public BlurgFont DefaultFont;
         public float DefaultSize;
+        public BlurgColor DefaultBackground;
         public BlurgColor DefaultColor = BlurgColor.White;
         public BlurgUnderline DefaultUnderline;
         public BlurgShadow DefaultShadow;

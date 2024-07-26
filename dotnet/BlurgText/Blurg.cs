@@ -121,6 +121,7 @@ namespace BlurgText
                     text = handles[i].AddrOfPinnedObject(),
                     defaultFont = text[i].DefaultFont.Handle,
                     defaultSize = text[i].DefaultSize,
+                    defaultBackground = text[i].DefaultBackground,
                     defaultColor = text[i].DefaultColor,
                     defaultShadow = text[i].DefaultShadow,
                     defaultUnderline = text[i].DefaultUnderline,
@@ -159,6 +160,7 @@ namespace BlurgText
                             {
                                 startIndex = span.StartIndex,
                                 endIndex = span.EndIndex,
+                                background = span.Background,
                                 color = span.Color,
                                 font = span.Font.Handle,
                                 fontSize = span.FontSize,

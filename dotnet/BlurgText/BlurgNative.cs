@@ -24,6 +24,7 @@ namespace BlurgText
             public int endIndex;
             public IntPtr font;
             public float fontSize;
+            public BlurgColor background;
             public BlurgColor color;
             public BlurgUnderline underline;
             public BlurgShadow shadow;
@@ -39,6 +40,7 @@ namespace BlurgText
             public int spanCount;
             public float defaultSize;
             public IntPtr defaultFont;
+            public BlurgColor defaultBackground;
             public BlurgColor defaultColor;
             public BlurgUnderline defaultUnderline;
             public BlurgShadow defaultShadow;
