@@ -283,7 +283,7 @@ BLURGAPI blurg_font_t *blurg_font_add_memory(blurg_t *blurg, char *data, int len
 
     // use invalid filename + map count to create unique identifier
     char identifier[256];
-    snprintf(identifier, 256, "COM1:/dev/null/%u\n", hashmap_count(blurg->fontManager->fileTable));
+    snprintf(identifier, 256, "COM1:/dev/null/%zu\n", hashmap_count(blurg->fontManager->fileTable));
     hashmap_set(blurg->fontManager->fileTable, &(font_data_entry){ .filename = strdup(identifier), .font = fontData });
     add_font(blurg, font);
     return font;

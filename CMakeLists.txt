@@ -53,10 +53,21 @@ configure_file(deps/libraqm/src/raqm-version.h.in raqm-version.h)
 if(WIN32)
     include(ExternalProject)
 
-    set(freetype_lib_name "libfreetype.a")
-    set(harfbuzz_lib_name "libharfbuzz.a")
+if(MSVC)
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(freetype_lib_name freetyped.lib)
+        set(harfbuzz_lib_name harfbuzzd.lib)
+    else()
+        set(freetype_lib_name freetype.lib)
+        set(harfbuzz_lib_name harfbuzz.lib)
+    endif()
+else()
+    set(freetype_lib_name libfreetype.a)
+    set(harfbuzz_lib_name libharfbuzz.a)
+endif()
 
-    ExternalProject_Add(FT_HB_PROJECT
+# Short name to avoid MAX_PATH errors on windows/msvc
+    ExternalProject_Add(FTHB
         SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/deps/ft-hb-bundle"
         BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${freetype_lib_name} <INSTALL_DIR>/lib/${harfbuzz_lib_name}
         CMAKE_ARGS
@@ -65,7 +76,7 @@ if(WIN32)
         -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
         -G ${CMAKE_GENERATOR}
     )
-    ExternalProject_Get_Property(FT_HB_PROJECT INSTALL_DIR)
+    ExternalProject_Get_Property(FTHB INSTALL_DIR)
     set(FT_HB_INSTALL_DIR ${INSTALL_DIR})
 
     
@@ -74,13 +85,13 @@ if(WIN32)
     set_property(TARGET FREETYPE_LIBRARY PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${FT_HB_INSTALL_DIR}/include/freetype2")
     file(MAKE_DIRECTORY ${FT_HB_INSTALL_DIR}/include/freetype2)
     set_property(TARGET FREETYPE_LIBRARY PROPERTY IMPORTED_LOCATION "${FT_HB_INSTALL_DIR}/lib/${freetype_lib_name}")
-    add_dependencies(FREETYPE_LIBRARY FT_HB_PROJECT)
+    add_dependencies(FREETYPE_LIBRARY FTHB)
 
     add_library(HARFBUZZ_LIBRARY STATIC IMPORTED GLOBAL)
     set_property(TARGET HARFBUZZ_LIBRARY PROPERTY IMPORTED_LOCATION "${FT_HB_INSTALL_DIR}/lib/${harfbuzz_lib_name}")
     file(MAKE_DIRECTORY ${FT_HB_INSTALL_DIR}/include/harfbuzz)
     set_property(TARGET HARFBUZZ_LIBRARY PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${FT_HB_INSTALL_DIR}/include/harfbuzz")
-    add_dependencies(HARFBUZZ_LIBRARY FT_HB_PROJECT)
+    add_dependencies(HARFBUZZ_LIBRARY FTHB)
 
     # Use SheenBidi bidirectional library
     add_library(sheenbidi STATIC

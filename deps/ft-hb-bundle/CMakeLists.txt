@@ -6,7 +6,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
  cmake_policy(SET CMP0135 NEW)
 endif()
 
- SET(FREETYPE_URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz")
+ SET(FREETYPE_URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.xz" "https://downloads.sourceforge.net/project/freetype/freetype2/2.13.2/freetype-2.13.2.tar.xz")
  SET(HARFBUZZ_URL "https://github.com/harfbuzz/harfbuzz/releases/download/9.0.0/harfbuzz-9.0.0.tar.xz")
 if(MSVC)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -29,7 +29,7 @@ endif()
     include(ExternalProject)
     #Stage 1 build Freetype
     ExternalProject_Add(
-        FREETYPE_NO_HARFBUZZ
+        FT1
         URL "${FREETYPE_URL}"
         BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${freetype_byproduct}
         CMAKE_ARGS
@@ -43,17 +43,17 @@ endif()
         -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}
     )
 
-    ExternalProject_Get_Property(FREETYPE_NO_HARFBUZZ install_dir)
-    set(FREETYPE_NO_HARFBUZZ_DIR ${install_dir})
+    ExternalProject_Get_Property(FT1 install_dir)
+    set(FT1_DIR ${install_dir})
 
     #Build Harfbuzz
     ExternalProject_Add(
-        HARFBUZZ_PROJECT
+        HB
         URL "${HARFBUZZ_URL}"
         BUILD_BYPRODUCTS ${harfbuzz_byproduct}
-        DEPENDS FREETYPE_NO_HARFBUZZ
+        DEPENDS FT1
         CMAKE_ARGS
-        -DCMAKE_PREFIX_PATH=${FREETYPE_NO_HARFBUZZ_DIR}
+        -DCMAKE_PREFIX_PATH=${FT1_DIR}
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
         -DHB_HAVE_FREETYPE=On
@@ -61,19 +61,14 @@ endif()
         -G ${CMAKE_GENERATOR}
     )
 
-    ExternalProject_Get_Property(HARFBUZZ_PROJECT INSTALL_DIR)
+    ExternalProject_Get_Property(HB INSTALL_DIR)
     set(HARFBUZZ_INSTALL_DIR ${INSTALL_DIR})
-    #add_library(HARFBUZZ_LIBRARY STATIC IMPORTED GLOBAL)
-    #set_property(TARGET HARFBUZZ_LIBRARY PROPERTY IMPORTED_LOCATION "${HARFBUZZ_INSTALL_DIR}/lib/${harfbuzz_lib_name}")
-    #file(MAKE_DIRECTORY ${HARFBUZZ_INSTALL_DIR}/include/harfbuzz)
-    #set_property(TARGET HARFBUZZ_LIBRARY PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${HARFBUZZ_INSTALL_DIR}/include/harfbuzz")
-    #add_dependencies(HARFBUZZ_LIBRARY HARFBUZZ_PROJECT)
 
     # Create full FT
     ExternalProject_Add(
-        FREETYPE_PROJECT
+        FT2
         URL "${FREETYPE_URL}"
-        DEPENDS HARFBUZZ_PROJECT
+        DEPENDS HB
         BUILD_BYPRODUCTS ${freetype_byproduct}
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -89,7 +84,7 @@ endif()
         -G ${CMAKE_GENERATOR}
     )
 
-    ExternalProject_Get_Property(FREETYPE_PROJECT INSTALL_DIR)
+    ExternalProject_Get_Property(FT2 INSTALL_DIR)
     set(FREETYPE_INSTALL_DIR ${INSTALL_DIR})
     install(
         DIRECTORY ${FREETYPE_INSTALL_DIR}/

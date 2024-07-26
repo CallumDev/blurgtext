@@ -916,7 +916,7 @@ BLURGAPI void blurg_measure_string(blurg_t *blurg, blurg_font_t *font, float siz
         .text = text,
         .alignment = blurg_align_left,
     };
-    return blurg_measure_formatted(blurg, &formatted, 1, 0, width, height);
+    blurg_measure_formatted(blurg, &formatted, 1, 0, width, height);
 }
 
 BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, const uint16_t *text, float *width, float *height)
@@ -931,7 +931,7 @@ BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, flo
         .text = text,
         .alignment = blurg_align_left,
     };
-    return blurg_measure_formatted(blurg, &formatted, 1, 0, width, height);
+    blurg_measure_formatted(blurg, &formatted, 1, 0, width, height);
 }
 
 BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int* rectCount, float *width, float *height)
