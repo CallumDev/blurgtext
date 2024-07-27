@@ -12,11 +12,15 @@ add_library(blurgtext SHARED
     src/font.c
     src/util.c
     src/sysfonts_fontconfig.c
+    src/sysfonts_directwrite.cpp
 )
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     #remove lib prefix on windows mingw
     set_target_properties(blurgtext PROPERTIES PREFIX "")
+    #enable directwrite (both mingw and MSVC)
+    target_compile_definitions(blurgtext PRIVATE -DBT_ENABLE_DIRECTWRITE=1)
+    target_link_libraries(blurgtext PRIVATE gdi32 dwrite)
 endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU" AND BT_MINGW_BUNDLE_LIBGCC)
@@ -55,12 +59,11 @@ if(WIN32)
     include(ExternalProject)
 
 if(MSVC)
+    set(harfbuzz_lib_name harfbuzz.lib)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(freetype_lib_name freetyped.lib)
-        set(harfbuzz_lib_name harfbuzzd.lib)
     else()
         set(freetype_lib_name freetype.lib)
-        set(harfbuzz_lib_name harfbuzz.lib)
     endif()
 else()
     set(freetype_lib_name libfreetype.a)

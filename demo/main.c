@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
-    SDL_Window *Window = SDL_CreateWindow("OpenGL Test", 0, 0, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_Window *Window = SDL_CreateWindow("OpenGL Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     SDL_GLContext Context = SDL_GL_CreateContext(Window);
     SDL_GL_MakeCurrent(Window, Context);
     SDL_GL_SetSwapInterval(1); // Enable vsync
@@ -258,8 +258,8 @@ int main(int argc, char* argv[])
     drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), strBuffer, 350, 400);
 
     drawString(blurg, font, "Hello World!\nNewline test", 8, 8);
-    // testing fallback with a bubble tea emoji
-    drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), "Hello World from native C \xF0\x9F\xA7\x8B", 400, 8);
+    // testing fallback with a bread emoji
+    drawString(blurg, blurg_font_query(blurg, "Segoe Print", BLURG_WEIGHT_BOLD, 0), "Hello World from native C \xF0\x9F\x8D\x9E", 400, 8);
     blurg_font_t *med = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0);
     snprintf(strBuffer, 1000, "medium fallback\n(actual: %d weight, %d italic)", blurg_font_get_weight(med), blurg_font_get_italic(med));
     drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0), strBuffer, 400, 100);

@@ -9,29 +9,22 @@ endif()
  SET(FREETYPE_URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.xz" "https://downloads.sourceforge.net/project/freetype/freetype2/2.13.2/freetype-2.13.2.tar.xz")
  SET(HARFBUZZ_URL "https://github.com/harfbuzz/harfbuzz/releases/download/9.0.0/harfbuzz-9.0.0.tar.xz")
 if(MSVC)
+        set(harfbuzz_lib_name harfbuzz.lib)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(freetype_lib_name freetyped.lib)
-        set(harfbuzz_lib_name harfbuzzd.lib)
     else()
         set(freetype_lib_name freetype.lib)
-        set(harfbuzz_lib_name harfbuzz.lib)
     endif()
 else()
     set(freetype_lib_name libfreetype.a)
     set(harfbuzz_lib_name libharfbuzz.a)
 endif()
-    list(APPEND freetype_byproduct
-        <INSTALL_DIR>/lib/${freetype_lib_name}
-    )
-    list(APPEND harfbuzz_byproduct
-        <INSTALL_DIR>/lib/${harfbuzz_lib_name}
-    )
     include(ExternalProject)
     #Stage 1 build Freetype
     ExternalProject_Add(
         FT1
         URL "${FREETYPE_URL}"
-        BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${freetype_byproduct}
+        BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${freetype_lib_name}
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -50,7 +43,7 @@ endif()
     ExternalProject_Add(
         HB
         URL "${HARFBUZZ_URL}"
-        BUILD_BYPRODUCTS ${harfbuzz_byproduct}
+        BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${harfbuzz_lib_name}
         DEPENDS FT1
         CMAKE_ARGS
         -DCMAKE_PREFIX_PATH=${FT1_DIR}
@@ -69,7 +62,7 @@ endif()
         FT2
         URL "${FREETYPE_URL}"
         DEPENDS HB
-        BUILD_BYPRODUCTS ${freetype_byproduct}
+        BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${freetype_lib_name}
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}

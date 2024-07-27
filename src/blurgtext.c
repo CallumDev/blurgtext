@@ -467,9 +467,11 @@ static void do_fallback(blurg_t *blurg, raqm_t *rq, raqm_glyph_t **glyphs, size_
         for(int i = 0; i < ranges.count; i++) {
             blurg_font_t *fontAtIndex = IDX_FONT(ranges.data[i].start);
             int clen;
-            fontAtIndex = blurg_font_fallback(blurg, fontAtIndex, get_codepoint(str, text, ranges.data[i].start, &clen));
-            font_use_size(fontAtIndex, size);
-            raqm_set_freetype_face_range(rq, fontAtIndex->face, ranges.data[i].start, ranges.data[i].len);
+            blurg_font_t *fallback = blurg_font_fallback(blurg, fontAtIndex, get_codepoint(str, text, ranges.data[i].start, &clen));
+            if (fallback) {
+                font_use_size(fallback, size);
+                raqm_set_freetype_face_range(rq, fallback->face, ranges.data[i].start, ranges.data[i].len);
+            }
         }
         list_range_free(&ranges);
         raqm_layout(rq);

@@ -22,6 +22,7 @@ endif()
 
 target_link_libraries(blurgtest PRIVATE blurgtext)
 target_include_directories(blurgtest PRIVATE "./glad/include")
+
  # SDL2 Dependency
 if (DEFINED SDL2_INCLUDE_DIRS AND DEFINED SDL2_LIBRARIES)
 message(STATUS "blurgtest: using pre-defined SDL2 variables SDL2_INCLUDE_DIRS and SDL2_LIBRARIES")
@@ -45,4 +46,11 @@ else()
     target_include_directories(testapp PRIVATE "$<BUILD_INTERFACE:${SDL2_INCLUDE_DIRS}>")
     target_link_libraries(blurgtest PRIVATE ${SDL2_LIBRARIES})
 endif()
+endif()
+
+if(WIN32)
+add_custom_command(TARGET blurgtest POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:blurgtest> $<TARGET_FILE_DIR:blurgtest>
+  COMMAND_EXPAND_LISTS
+  )
 endif()

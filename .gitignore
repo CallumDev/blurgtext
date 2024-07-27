@@ -5,3 +5,5 @@ build/
 [oO]bj/
 .idea/
 *.user
+CMakeSettings.json
+out/
