@@ -20,5 +20,7 @@ namespace BlurgText
         public FontWeight Weight => BlurgNative.blurg_font_get_weight(Handle);
 
         public bool Italic => BlurgNative.blurg_font_get_italic(Handle) != 0;
+
+        public void SetFallback(BlurgFont fallback) => BlurgNative.blurg_font_set_fallback(Handle, fallback.Handle);
     }
 }

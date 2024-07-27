@@ -232,6 +232,11 @@ BLURGAPI float blurg_font_get_line_height(blurg_font_t *font, float size)
     return font->lineHeight;
 }
 
+BLURGAPI void blurg_font_set_fallback(blurg_font_t *font, blurg_font_t *fallback)
+{
+    font->fallback = fallback;
+}
+
 blurg_font_t *blurg_font_create_internal(blurg_t *blurg, allocated_font *data)
 {
     FT_Face face;

@@ -75,6 +75,9 @@ namespace BlurgText
         
         [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern int blurg_font_get_italic(IntPtr font);
+        
+        [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void blurg_font_set_fallback(IntPtr font, IntPtr fallback);
 
         [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe IntPtr blurg_build_string_utf16(IntPtr blurg, IntPtr font, float size, uint color,

@@ -133,6 +133,8 @@ BLURGAPI blurg_font_t *blurg_font_add_file(blurg_t *blurg, const char *filename)
  * If copy is 0, the application manages the data. The buffer must not be freed until after blurg_destroy is called.
 */
 BLURGAPI blurg_font_t *blurg_font_add_memory(blurg_t *blurg, char *data, int len, int copy);
+
+BLURGAPI void blurg_font_set_fallback(blurg_font_t *font, blurg_font_t *fallback);
 /*
 * Tries to find a font with the specified family, weight and italic.
 * Returns NULL if a font is not found
