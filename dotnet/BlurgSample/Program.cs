@@ -31,6 +31,7 @@ public class Program : GameWindow
         base.OnLoad();
         renderer = new Render2D();
         blurg = new Blurg(renderer.CreateTexture, renderer.UpdateTexture);
+        blurg.EnableSystemFonts();
         blurg.AddFontFile(Res("Roboto-Regular.ttf"));
         blurg.AddFontFile(Res("Roboto-Bold.ttf"));
         blurg.AddFontFile(Res("Roboto-Italic.ttf"));

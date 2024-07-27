@@ -1,5 +1,6 @@
 #include "blurgtext_internal.h"
-
+#include FT_OUTLINE_H
+#include FT_SYNTHESIS_H
 static const uint8_t blurg_gamma[0x100] = {
     0x00, 0x0B, 0x11, 0x15, 0x19, 0x1C, 0x1F, 0x22, 0x25, 0x27, 0x2A, 0x2C, 0x2E, 0x30, 0x32, 0x34,
     0x36, 0x38, 0x3A, 0x3C, 0x3D, 0x3F, 0x41, 0x43, 0x44, 0x46, 0x47, 0x49, 0x4A, 0x4C, 0x4D, 0x4F,
@@ -73,8 +74,23 @@ void glyphatlas_get(blurg_t *blurg, blurg_font_t *font, uint32_t index, blurg_gl
     }
 
     FT_Face face = font->face;
-    FT_Load_Glyph(face, index, FT_LOAD_TARGET_LIGHT);
-    FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
+    int loadFlags = FT_LOAD_TARGET_LIGHT;
+    if(FT_HAS_COLOR(face)) {
+        loadFlags |= FT_LOAD_COLOR;
+    }
+    FT_Load_Glyph(face, index, loadFlags);
+    if(font->embolden) {
+        if(face->glyph->format == FT_GLYPH_FORMAT_OUTLINE) {
+            FT_Pos strength = FT_MulFix(face->units_per_EM, face->size->metrics.y_scale) / 48;
+            FT_Outline_Embolden(&face->glyph->outline, strength);
+        } else {
+            FT_GlyphSlot_Embolden(face->glyph);
+        }
+    }
+    FT_Error err = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
+    if(err != FT_Err_Ok) {
+        printf("render error: %s\n", FT_Error_String(err));
+    }
     FT_Bitmap rendered = face->glyph->bitmap;
     // find place to pack rendered glyph
     int packW = rendered.width + 1; // padding
@@ -91,9 +107,17 @@ void glyphatlas_get(blurg_t *blurg, blurg_font_t *font, uint32_t index, blurg_gl
     if(packH > blurg->packed.lineMax)
         blurg->packed.lineMax = packH;
     // create and upload glyph data
-    uint32_t* buf = malloc(rendered.width * rendered.rows * sizeof(uint32_t));
-    for(int i = 0; i < rendered.width * rendered.rows; i++) {
-        buf[i] = 0x00FFFFFF | (blurg_gamma[rendered.buffer[i]] << 24);
+    uint32_t* buf;
+    if(rendered.pixel_mode == FT_PIXEL_MODE_BGRA) 
+    {
+        buf = (uint32_t*)rendered.buffer;
+    }
+    else 
+    {
+        buf = malloc(rendered.width * rendered.rows * sizeof(uint32_t));
+        for(int i = 0; i < rendered.width * rendered.rows; i++) {
+            buf[i] = 0x00FFFFFF | (blurg_gamma[rendered.buffer[i]] << 24);
+        }
     }
     blurg->textureUpdate(
         blurg->packed.pages[blurg->packed.curTex - 1],
@@ -103,7 +127,9 @@ void glyphatlas_get(blurg_t *blurg, blurg_font_t *font, uint32_t index, blurg_gl
         rendered.width,
         rendered.rows
     );
-    free(buf);
+    if(rendered.pixel_mode != FT_PIXEL_MODE_BGRA) {
+        free(buf);
+    }
     *glyph = (blurg_glyph){
         .texture = blurg->packed.curTex - 1,
         .srcX = blurg->packed.currentX,
@@ -111,7 +137,8 @@ void glyphatlas_get(blurg_t *blurg, blurg_font_t *font, uint32_t index, blurg_gl
         .srcW = rendered.width,
         .srcH = rendered.rows,
         .offsetLeft = face->glyph->bitmap_left,
-        .offsetTop = face->glyph->bitmap_top
+        .offsetTop = face->glyph->bitmap_top,
+        .color = rendered.pixel_mode == FT_PIXEL_MODE_BGRA,
     };
     // update packing, set hashmap
     blurg->packed.currentX += packW;

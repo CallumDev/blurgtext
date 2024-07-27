@@ -34,6 +34,8 @@ namespace BlurgText
             );
         }
 
+        public bool EnableSystemFonts() => blurg_enable_system_fonts(Handle) != 0;
+
         BlurgFont? ToFont(IntPtr ptr)
         {
             if (ptr == IntPtr.Zero)

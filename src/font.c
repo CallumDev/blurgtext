@@ -1,6 +1,7 @@
 #include "blurgtext_internal.h"
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 #include "util.h"
 
 #define DPI 72
@@ -38,20 +39,27 @@ static void font_finalizer(void* object)
     free(face->generic.data);
 }
 
+void blurg_font_rehash(blurg_font_t *fnt)
+{
+    FT_Face face = fnt->face;
+    char hashbuffer[2048];
+    snprintf(
+        hashbuffer, 2048, "%i;%s;%s;%d", 
+        face->face_index, 
+        face->style_name, 
+        face->family_name,
+        fnt->embolden
+    );
+    fnt->faceHash = fnv1a_str(hashbuffer);
+}
+
 blurg_font_t *blurg_from_freetype(FT_Face face)
 {
     if(face->generic.finalizer != font_finalizer) {
         blurg_font_t *fnt = malloc(sizeof(blurg_font_t));
         memset(fnt, 0, sizeof(blurg_font_t));
-        char hashbuffer[2048];
-        snprintf(
-            hashbuffer, 2048, "%i;%s;%s", 
-            face->face_index, 
-            face->style_name, 
-            face->family_name
-        );
-        fnt->faceHash = fnv1a_str(hashbuffer);
         fnt->face = face;
+        blurg_font_rehash(fnt);
         face->generic.data = fnt;
         face->generic.finalizer = font_finalizer;
         return fnt;
@@ -62,20 +70,51 @@ blurg_font_t *blurg_from_freetype(FT_Face face)
 void font_use_size(blurg_font_t *fnt, float size)
 {
     int sizeVal = (int)(size * 64.0);
+    int glyphVal = sizeVal;
     if(fnt->setSize == sizeVal)
         return;
 
     FT_Face face = fnt->face;
-    FT_Set_Char_Size(face, 0, sizeVal, DPI, DPI);
+    if(FT_HAS_FIXED_SIZES(face)) 
+    {
+        if(face->num_fixed_sizes == 0) 
+        {
+            FT_Set_Char_Size(face, 0, sizeVal, DPI, DPI);
+            fnt->scale = 1.;
+        } 
+        else 
+        {
+            int best_match = 0;
+            float diff = fabs((face->available_sizes[0].size / 64.0) - size);
+            glyphVal = face->available_sizes[0].size;
+            for (int i = 1; i < face->num_fixed_sizes; i++) 
+            {
+	            float new_size = face->available_sizes[i].size / 64.0;
+	            float ndiff = fabs(new_size - size);
+                if(ndiff < diff) {
+                    best_match = i;
+                    glyphVal = face->available_sizes[i].size;
+                    diff = ndiff;
+                }
+            }
+            FT_Select_Size(face, best_match);
+            fnt->scale = size / (glyphVal / 64.0);
+        }
+    } 
+    else 
+    {
+        FT_Set_Char_Size(face, 0, sizeVal, DPI, DPI);
+        fnt->scale = 1.;
+    }
     // metrics
-    fnt->ascender = face->size->metrics.ascender / 64.0;
-    float descent = face->size->metrics.descender / 64.0;
-    float height = (face->size->metrics.height / 64.0);
+    fnt->ascender = face->size->metrics.ascender / 64.0 * fnt->scale;
+    float descent = face->size->metrics.descender / 64.0 * fnt->scale;
+    float height = (face->size->metrics.height / 64.0) * fnt->scale;
     float linegap = height - fnt->ascender + descent;
     fnt->lineHeight = fnt->ascender - descent + linegap;
     // hash
     fnt->setSize = sizeVal;
-    fnt->hash = fnv1a_combined(fnt->faceHash, (uint32_t)sizeVal);
+    fnt->hash = fnv1a_combined(fnt->faceHash, (uint32_t)glyphVal);
 }
 
 static void SetCharmap(FT_Face face)

@@ -289,24 +289,75 @@ BLURGAPI blurg_font_t *blurg_font_add_memory(blurg_t *blurg, char *data, int len
     return font;
 }
 
+blurg_font_t *blurg_font_fallback(blurg_t *blurg, blurg_font_t *font, uint32_t character)
+{
+    while(font->fallback) {
+        font = font->fallback;
+        if(FT_Get_Char_Index(font->face, character)) {
+            return font;
+        }
+    }
+    blurg_font_t *newFallback = blurg_sysfonts_query(
+        blurg, 
+        font->face->family_name,
+        font->embolden ? BLURG_WEIGHT_BOLD : font->weight,
+        font->italic,
+        character
+    );
+    if(newFallback) {
+        font->fallback = newFallback;
+        return newFallback;
+    }
+    return NULL;
+}
+
 BLURGAPI blurg_font_t *blurg_font_query(blurg_t *blurg, const char *familyName, int weight, int italic)
 {
     font_manager_t *fm = blurg->fontManager;
     const font_entry *result = hashmap_get(fm->fontTable, &(font_entry){ .familyName = familyName });
     if(!result) {
-        if(fm->defaultFont) {
-            result = hashmap_get(fm->fontTable, &(font_entry){ .familyName = fm->defaultFont });
-            if(!result) {
-                return NULL;
-            }
-        } else {
-            return NULL;
+        blurg_font_t *sysf = blurg_sysfonts_query(blurg, familyName, weight, italic, 0);
+        if(sysf) {
+            font_entry fe;
+            memset(&fe, 0, sizeof(font_entry));
+            fe.isSystemFont = 1;
+            fe.familyName = familyName;
+            uint32_t k = (italic ? (1U << 31) : 0) | (uint32_t)weight;
+            font_entry_set_style(fm, &fe, 0, k, sysf);
+            hashmap_set(fm->fontTable, &fe);
+            return sysf;
         }
+        return NULL;
     }
     int exactMatch;
     blurg_font_t *fnt = query_entry(fm, result, weight, italic, &exactMatch);
     if(exactMatch) {
         return fnt;
+    } 
+    else if (result->isSystemFont) {
+        blurg_font_t *sysf = blurg_sysfonts_query(blurg, familyName, weight, italic, 0);
+        if(sysf) {
+            font_entry fe = *result;
+            uint32_t k = (italic ? (1U << 31) : 0) | (uint32_t)weight;
+            font_entry_set_style(fm, &fe, 0, k, sysf);
+        } else {
+            return fnt;
+        }
     }
     return fnt;
 }
+
+#ifndef SYSFONTS
+BLURGAPI int blurg_enable_system_fonts(blurg_t *blurg)
+{
+    return 0;
+}
+blurg_font_t *blurg_sysfonts_query(blurg_t *blurg, const char *familyName, int weight, int italic, uint32_t character)
+{
+    return NULL;
+}
+void blurg_sysfonts_destroy(blurg_t *blurg)
+{
+    // no-op
+}
+#endif

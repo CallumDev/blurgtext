@@ -115,6 +115,12 @@ typedef void (*blurg_texture_update)(blurg_texture_t *texture, void *buffer, int
 
 BLURGAPI blurg_t *blurg_create(blurg_texture_allocate textureAllocate, blurg_texture_update textureUpdate);
 
+/*
+ * Enables querying fonts from the system
+ * Returns 0 on failure or if system font support is not compiled in
+*/
+BLURGAPI int blurg_enable_system_fonts(blurg_t *blurg);
+
 BLURGAPI const char *blurg_font_get_family(blurg_font_t *font);
 BLURGAPI int blurg_font_get_italic(blurg_font_t *font);
 BLURGAPI int blurg_font_get_weight(blurg_font_t *font);

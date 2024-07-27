@@ -71,6 +71,11 @@ BLURGAPI void blurg_destroy(blurg_t *blurg)
     glyphatlas_destroy(blurg);
     FT_Done_Library(blurg->library);
     font_manager_destroy(blurg);
+    #ifdef SYSFONTS
+    if(blurg->sysFontData) {
+        blurg_sysfonts_destroy(blurg);
+    }
+    #endif
     free(blurg);
 }
 
@@ -142,6 +147,58 @@ static void add_background(blurg_t *b, active_background ul, float xEnd, list_bl
         .height = 1,
         .color = ul.color,
     });
+}
+
+static uint32_t get_codepoint(const void *str, blurg_formatted_text_t *text, int cluster, int* count)
+{
+    if(text->encoding == blurg_encoding_utf16) 
+    {
+        uint16_t *s = &((uint16_t*)str)[cluster];
+        if (s[0] >= 0xD800 && s[0] <= 0xDBFF)
+        {
+            if (s[1] >= 0xDC00 && s[1] <= 0xDFFF)
+            {
+                *count = 2;
+                uint32_t high = ((s[0] & ((1 << 6) -1)) << 10) | (s[1] & ((1 << 10) -1));
+                uint32_t low = (s[0] >> 6) & ((1 << 5) - 1);
+                return (high+1) << 16 | low;
+            }
+            else
+            {
+                *count = 1;
+                return s[0]; //invalid, just reutrn whatever
+            }
+        }
+        else
+        {
+           *count = 1;
+           return s[0];
+        }
+    }
+    else 
+    {
+        uint8_t *s = &((uint8_t*)str)[cluster];
+        if (0xf0 == (0xf8 & s[0]))
+        {
+            *count = 4;
+            return ((0x07 & s[0]) << 18) | ((0x3f & s[1]) << 12) | ((0x3f & s[2]) << 6) | (0x3f & s[3]);
+        }
+        else if (0xe0 == (0xf0 & s[0]))
+        {
+            *count = 3;
+            return ((0x0f & s[0]) << 12) | ((0x3f & s[1]) << 6) | (0x3f & s[2]);
+        }
+        else if (0xc0 == (0xe0 & s[0]))
+        {
+            *count = 2;
+            return ((0x1f & s[0]) << 6) | (0x3f & s[1]);
+        }
+        else
+        {
+            *count = 1;
+            return s[0];
+        }
+    }
 }
 
 static void raqm_to_rects(
@@ -270,14 +327,14 @@ static void raqm_to_rects(
             .v0 = vis.srcY / (float)BLURG_TEXTURE_SIZE,
             .u1 = (vis.srcX + vis.srcW) / (float)BLURG_TEXTURE_SIZE,
             .v1 = (vis.srcY + vis.srcH) / (float)BLURG_TEXTURE_SIZE,
-            .x = (int)(*x + (glyphs[i].x_offset / 64.0) + vis.offsetLeft),
-            .y = (int)(*y + (glyphs[i].y_offset / 64.0) - vis.offsetTop),
-            .width = vis.srcW,
-            .height = vis.srcH,
-            .color = IDX_COLOR(glyphs[i].cluster), 
+            .x = (int)(*x + (glyphs[i].x_offset / 64.0) + (vis.offsetLeft * font->scale)),
+            .y = (int)(*y + (glyphs[i].y_offset / 64.0) - (vis.offsetTop * font->scale)),
+            .width = (int)(vis.srcW * font->scale),
+            .height = (int)(vis.srcH * font->scale),
+            .color = vis.color ? 0xFFFFFFFF : IDX_COLOR(glyphs[i].cluster), 
         });
-        *x += glyphs[i].x_advance / 64.0;
-        *y += glyphs[i].y_advance / 64.0;
+        *x += glyphs[i].x_advance / 64.0 * font->scale;
+        *y += glyphs[i].y_advance / 64.0 * font->scale;
     }
 
     // finalize underlines
@@ -351,19 +408,88 @@ static void wrap_line(raqm_glyph_t *glyphs, char* breaks, int *charCount, size_t
     }
 }
 
+static void set_text(raqm_t *rq, const void *str, int len, blurg_formatted_text_t *text)
+{
+    if(text->encoding == blurg_encoding_utf16)
+        raqm_set_text_utf16(rq, (const utf16_t*)str, len);
+    else
+        raqm_set_text_utf8(rq, (const char*)str, len);
+}
+
+typedef struct {
+    int start;
+    int len;
+} range;
+
+DEFINE_LIST(range)
+IMPLEMENT_LIST(range)
+
+// Fills a list of clusters to reshape if needed
+// Using clusters so ZWJ sequences can work (e.g. emojis)
+static bool needs_fallback(raqm_glyph_t *glyphs, size_t count, int len, list_range *ranges)
+{
+    int last = -1;
+    int has = 0;
+    for(size_t i = 0; i < count; i++) {
+        if(last != -1 && glyphs[i].cluster != last) {
+            list_range_add(ranges, (range){ .start = last, .len = glyphs[i].cluster - last });
+            last = -1;
+        }
+        if(!glyphs[i].index) {
+            if(!has) {
+                has = 1;
+                list_range_init(ranges, 8);
+            }
+            if(last == -1) {
+                last = glyphs[i].cluster;
+            }
+        }
+    }
+    if(last != -1) {
+        list_range_add(ranges, (range){ .start = last, .len = len - last });
+    }
+    return has;
+}
+
+static void do_fallback(blurg_t *blurg, raqm_t *rq, raqm_glyph_t **glyphs, size_t *count, const void *str, int len,
+    int* attributes, blurg_formatted_text_t *text, float size)
+{
+    list_range ranges;
+    if(needs_fallback(*glyphs, *count, len, &ranges)) {
+        raqm_clear_contents(rq);
+        set_text(rq, str, len, text);
+        raqm_set_par_direction(rq, RAQM_DIRECTION_DEFAULT);
+        for(size_t i = 0; i < len; i++) {
+            blurg_font_t *fontAtIndex = IDX_FONT(i);
+            font_use_size(fontAtIndex, size);
+            raqm_set_freetype_face_range(rq, fontAtIndex->face, i, 1);
+        }
+        for(int i = 0; i < ranges.count; i++) {
+            blurg_font_t *fontAtIndex = IDX_FONT(ranges.data[i].start);
+            int clen;
+            fontAtIndex = blurg_font_fallback(blurg, fontAtIndex, get_codepoint(str, text, ranges.data[i].start, &clen));
+            font_use_size(fontAtIndex, size);
+            raqm_set_freetype_face_range(rq, fontAtIndex->face, ranges.data[i].start, ranges.data[i].len);
+        }
+        list_range_free(&ranges);
+        raqm_layout(rq);
+        *glyphs = raqm_get_glyphs(rq, count);
+    }
+}
+
 // returns the length of text shaped/turned into rects for current maxWidth
 static int blurg_shape_chunk(blurg_t *blurg, const void *str, char *breaks, int len, float size,
     int* attributes, blurg_formatted_text_t *text, build_context *ctx, float *x, float *y, float maxWidth)
 {
     raqm_t* rq = raqm_create();
-    if(text->encoding == blurg_encoding_utf16)
-        raqm_set_text_utf16(rq, (const utf16_t*)str, len);
-    else
-        raqm_set_text_utf8(rq, (const char*)str, len);
+    set_text(rq, str, len, text);
     raqm_set_par_direction(rq, RAQM_DIRECTION_DEFAULT);
     int hasShadows = len + 1;
     int hasUnderlines = len + 1;
     int hasBackground = len + 1;
+
+    int needFallback = 0;
+    
     for(int i = 0; i < len; i++) {
         blurg_font_t *fontAtIndex = IDX_FONT(i);
         // optimisation. check if there are any shadow/underline attributes
@@ -384,6 +510,7 @@ static int blurg_shape_chunk(blurg_t *blurg, const void *str, char *breaks, int 
     size_t count = SIZE_MAX;
     int charCount = len;
     raqm_glyph_t *glyphs = raqm_get_glyphs (rq, &count);
+    do_fallback(blurg, rq, &glyphs, &count, str, len, attributes, text, size);
     wrap_line(glyphs, breaks, &charCount, &count, *x, maxWidth);
     raqm_to_rects(blurg, rq, ctx, x, y, count, text, attributes, hasShadows < charCount, hasUnderlines < charCount, hasBackground < charCount);
     raqm_destroy(rq);

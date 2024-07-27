@@ -56,6 +56,9 @@ namespace BlurgText
         public static extern IntPtr blurg_create(IntPtr textureAllocate, IntPtr textureUpdate);
 
         [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int blurg_enable_system_fonts(IntPtr blurg);
+
+        [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr blurg_font_add_file(IntPtr blurg, IntPtr filename);
 
         [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]

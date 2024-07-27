@@ -11,6 +11,7 @@ add_library(blurgtext SHARED
     src/fontmanager.c
     src/font.c
     src/util.c
+    src/sysfonts_fontconfig.c
 )
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
@@ -111,11 +112,13 @@ else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(HARFBUZZ REQUIRED IMPORTED_TARGET harfbuzz)
     pkg_check_modules(FRIBIDI REQUIRED IMPORTED_TARGET fribidi)
+    pkg_check_modules(FONTCONFIG REQUIRED IMPORTED_TARGET fontconfig)
     target_link_libraries(raqm PRIVATE ${FREETYPE_LIBRARIES} PkgConfig::HARFBUZZ PkgConfig::FRIBIDI)
     target_include_directories(raqm PRIVATE ${FREETYPE_INCLUDE_DIRS} ${HARFBUZZ_INCLUDE_DIRS})
     target_include_directories(raqm PUBLIC "${CMAKE_CURRENT_BINARY_DIR}" "deps/libraqm/src")
     # link to main project
-    target_link_libraries(blurgtext PRIVATE raqm ${FREETYPE_LIBRARIES} PkgConfig::HARFBUZZ)
+    target_compile_definitions(blurgtext PRIVATE -DBT_ENABLE_FONTCONFIG=1)
+    target_link_libraries(blurgtext PRIVATE raqm ${FREETYPE_LIBRARIES} PkgConfig::HARFBUZZ PkgConfig::FONTCONFIG)
     target_include_directories(blurgtext PRIVATE ${FREETYPE_INCLUDE_DIRS} ${HARFBUZZ_INCLUDE_DIRS})
 endif()
 

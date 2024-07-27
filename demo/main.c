@@ -28,13 +28,13 @@ static void tallocate(blurg_texture_t *texture, int width, int height)
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
 }
 
 static void tupdate(blurg_texture_t *texture, void *buffer, int x, int y, int width, int height)
 {
     uint32_t tex = (uint32_t)(uintptr_t)texture->userdata;
-    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, GL_BGRA, GL_UNSIGNED_BYTE, buffer);
 }
 
 typedef struct vertex {
@@ -171,6 +171,9 @@ int main(int argc, char* argv[])
     // Generate string
     blurg_t *blurg = blurg_create(tallocate, tupdate);
     blurg_font_t *font = loadFont(blurg, "Roboto-Regular.ttf");
+    if(!blurg_enable_system_fonts(blurg)) {
+        printf("System fonts not available\n");
+    }
 
     loadFont(blurg, "Roboto-Bold.ttf");
     loadFont(blurg, "Roboto-Italic.ttf");
@@ -255,7 +258,8 @@ int main(int argc, char* argv[])
     drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), strBuffer, 350, 400);
 
     drawString(blurg, font, "Hello World!\nNewline test", 8, 8);
-    drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), "Hello World from native C", 400, 8);
+    // testing fallback with a bubble tea emoji
+    drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), "Hello World from native C \xF0\x9F\xA7\x8B", 400, 8);
     blurg_font_t *med = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0);
     snprintf(strBuffer, 1000, "medium fallback\n(actual: %d weight, %d italic)", blurg_font_get_weight(med), blurg_font_get_italic(med));
     drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0), strBuffer, 400, 100);
