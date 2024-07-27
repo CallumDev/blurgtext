@@ -1,4 +1,4 @@
-# blurgtext
+![blurgtext](dotnet/BlurgText/icon.png)
 
 Text rendering library targeted at integration in game engines, making use of:
 
