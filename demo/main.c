@@ -65,6 +65,48 @@ static void printShaderInfoLog(uint32_t handle, const char *type)
 
 static uint32_t vbo;
 
+static void drawSingle(int x, int y, int width, int height, blurg_color_t color)
+{
+    vertex_t vertices[6];
+    vertex_t top_left = {
+        .x = x,
+        .y = y,
+        .u = 0.5 / 1024.0,
+        .v = 0.5/ 1024.0,
+        .color = color
+    };
+    vertex_t top_right = {
+        .x = x + width,
+        .y = y,
+        .u = 0.5 / 1024.0,
+        .v = 0.5 / 1024.0,
+        .color = color
+    };
+    vertex_t bottom_left = {
+        .x = x,
+        .y = y + height,
+        .u = 0.5 / 1024.0,
+        .v = 0.5 / 1024.0,
+        .color = color
+    };
+    vertex_t bottom_right = {
+        .x = x + width,
+        .y = y + height,
+        .u = 0.5 / 1024.0,
+        .v = 0.5 / 1024.0,
+        .color = color
+    };
+    vertices[0] = top_left;
+    vertices[1] = top_right;
+    vertices[2] = bottom_left;
+    vertices[3] = top_right;
+    vertices[4] = bottom_right;
+    vertices[5] = bottom_left;
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_t) * 6, vertices, GL_STATIC_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
 static void drawRects(blurg_rect_t *rects, int count, int x, int y)
 {
     vertex_t *vertices = malloc(sizeof(vertex_t) * count * 6);
@@ -113,10 +155,10 @@ static void drawRects(blurg_rect_t *rects, int count, int x, int y)
 
 static void drawString(blurg_t* blurg, blurg_font_t *font, const char *text, int x, int y)
 {
-    int count;
-    blurg_rect_t *rects = blurg_build_string(blurg, font, 24.0, 0xFF0000FF, text, &count, NULL, NULL);
-    drawRects(rects, count, x, y);
-    blurg_free_rects(rects);
+    blurg_result_t result;
+    blurg_build_string(blurg, font, 24.0, 0xFF0000FF, text, &result);
+    drawRects(result.rects, result.rectCount, x, y);
+    blurg_free_result(&result);
 }
 
 static blurg_font_t* loadFont(blurg_t *blurg, const char *filename)
@@ -328,9 +370,10 @@ int main(int argc, char* argv[])
     };
 
     int fcount;
-    blurg_rect_t* formattedRects = blurg_build_formatted(blurg, &formatted, 1, 350, &fcount, NULL, NULL);
-    drawRects(formattedRects, fcount, 8, 100);
-    blurg_free_rects(formattedRects);
+    blurg_result_t result;
+    blurg_build_formatted(blurg, &formatted, 1, 350, 0, &result);
+    drawRects(result.rects, result.rectCount, 8, 100);
+    blurg_free_result(&result);
 
     blurg_formatted_text_t utf16 = {
         // HELLO, WIDE! as a utf-16 encoded string. wchar_t on unix is 32-bit, so not portable here
@@ -347,9 +390,11 @@ int main(int argc, char* argv[])
         .encoding = blurg_encoding_utf16,
     };
 
-    formattedRects = blurg_build_formatted(blurg, &utf16, 1, 350, &fcount, NULL, NULL);
-    drawRects(formattedRects, fcount, 200, 100);
-    blurg_free_rects(formattedRects);
+    blurg_build_formatted(blurg, &utf16, 1, 350, 1, &result);
+    drawRects(result.rects, result.rectCount, 200, 100);
+    // draw a cursor after the first L in HELLO
+    drawSingle(200 + result.cursors[2].x, 100 + result.cursors[2].y, 1, result.cursors[2].height, 0xFFFFFFFF);
+    blurg_free_result(&result);
 
     SDL_GL_SwapWindow(Window);
   }

@@ -80,7 +80,7 @@ public class Program : GameWindow
 
         var sz2 = blurg.MeasureFormattedText(texts, 500);
         renderer.FillBackground(16, 190, (int)sz2.X, (int)sz2.Y, new BlurgColor(96, 0, 96, 255));
-        renderer.DrawRects(blurg.BuildFormattedText(texts, 500), 16, 190);
+        renderer.DrawRects(blurg.BuildFormattedText(texts, false, 500), 16, 190);
         renderer.Finish();
         
         SwapBuffers();

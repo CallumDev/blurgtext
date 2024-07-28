@@ -45,6 +45,17 @@ namespace BlurgText
             public BlurgUnderline defaultUnderline;
             public BlurgShadow defaultShadow;
         }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct blurg_result_t
+        {
+            public float width;
+            public float height;
+            public int rectCount;
+            public IntPtr rects;
+            public int cursorCount;
+            public IntPtr cursors;
+        }
         
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void blurg_texture_allocate(IntPtr texture, int width, int height);
@@ -80,12 +91,12 @@ namespace BlurgText
         public static extern void blurg_font_set_fallback(IntPtr font, IntPtr fallback);
 
         [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
-        public static extern unsafe IntPtr blurg_build_string_utf16(IntPtr blurg, IntPtr font, float size, uint color,
-            IntPtr text, int* rectCount, float* width, float* height);
+        public static extern unsafe void blurg_build_string_utf16(IntPtr blurg, IntPtr font, float size, uint color,
+            IntPtr text, blurg_result_t *result);
 
         [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
-        public static extern unsafe IntPtr blurg_build_formatted(IntPtr formatted, IntPtr texts, int count,
-            float maxWidth, int* rectCount, float* width, float* height);
+        public static extern unsafe void blurg_build_formatted(IntPtr formatted, IntPtr texts, int count,
+            int measureCursor, float maxWidth, blurg_result_t* result);
         
         [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void blurg_measure_string_utf16(IntPtr blurg, IntPtr font, float size, IntPtr text, float *width, float *height);
@@ -94,7 +105,7 @@ namespace BlurgText
         public static extern unsafe void blurg_measure_formatted(IntPtr blurg, IntPtr texts, int count, float maxWidth, float* width, float *height);
         
         [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void blurg_free_rects(IntPtr rects);
+        public static extern void blurg_free_result(IntPtr result);
 
         [DllImport("blurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern void blurg_destroy(IntPtr blurg);

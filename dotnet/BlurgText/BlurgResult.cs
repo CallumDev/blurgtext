@@ -4,25 +4,30 @@ using System.Collections.Generic;
 
 namespace BlurgText
 {
-    public sealed unsafe class BlurgResult : IDisposable, IReadOnlyList<BlurgRect>
+    public sealed unsafe class BlurgResult : 
+        IDisposable, IReadOnlyList<BlurgRect>
     {
-        public float Width { get; }
-        public float Height { get; }
-        public int Count { get; }
+        public float Width => res.width;
+        public float Height => res.height;
+        public int Count => res.rectCount;
+        
+        private BlurgNative.blurg_result_t res;
 
-        private IntPtr rects;
+        public ReadOnlySpan<BlurgCursor> Cursors => res.cursors == IntPtr.Zero
+            ? ReadOnlySpan<BlurgCursor>.Empty
+            : new ReadOnlySpan<BlurgCursor>((void*)res.cursors, res.cursorCount);
 
-        internal BlurgResult(IntPtr rects, int count, float w, float h)
+        internal BlurgResult(BlurgNative.blurg_result_t res)
         {
-            this.rects = rects;
-            this.Count = count;
-            Width = w;
-            Height = h;
+            this.res = res;
         }
 
         private void ReleaseUnmanagedResources()
         {
-            BlurgNative.blurg_free_rects(rects);
+            fixed (BlurgNative.blurg_result_t* r = &res)
+            {
+                BlurgNative.blurg_free_result((IntPtr)r);
+            }
         }
 
         public void Dispose()
@@ -62,7 +67,7 @@ namespace BlurgText
 
         IEnumerator<BlurgRect> IEnumerable<BlurgRect>.GetEnumerator() => GetEnumerator();
         
-        public BlurgRect this[int index] => ((BlurgRect*)rects)[index];
+        public BlurgRect this[int index] => ((BlurgRect*)res.rects)[index];
 
         ~BlurgResult()
         {

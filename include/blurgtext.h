@@ -73,6 +73,22 @@ typedef struct _blurg_rect {
     blurg_color_t color;
 } blurg_rect_t;
 
+typedef struct _blurg_cursor {
+    int x;
+    int y;
+    int height;
+} blurg_cursor_t;
+
+typedef struct _blurg_result_t {
+    float width;
+    float height;
+    int rectCount;
+    blurg_rect_t *rects;
+    int cursorCount;
+    blurg_cursor_t *cursors;
+} blurg_result_t;
+
+
 typedef struct _blurg_style_span {
     int startIndex;
     int endIndex;
@@ -141,16 +157,16 @@ BLURGAPI void blurg_font_set_fallback(blurg_font_t *font, blurg_font_t *fallback
 */
 BLURGAPI blurg_font_t *blurg_font_query(blurg_t *blurg, const char *familyName, int weight, int italic);
 /*
- * Turns a single string into a rectangle array. Free the result with blurg_free_rects
+ * Turns a single string into a rectangle array written into *result. Free the result with blurg_free_result
 */
-BLURGAPI blurg_rect_t* blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int* rectCount, float *width, float *height);
-BLURGAPI blurg_rect_t* blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const uint16_t *text, int* rectCount, float *width, float *height);
+BLURGAPI void blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, blurg_result_t *result);
+BLURGAPI void blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const uint16_t *text, blurg_result_t *result);
 /*
- * Turns an array of formatted text objects into a rectangle array. Free the result with blurg_free_rects
- * Count of rects is written to rectCount, width and height of built text written to width/height parameters
+ * Turns an array of formatted text objects into a rectangle array written into *result. Free the result with blurg_free_result
+ * Optionally measures cursor position if measureCursors is true
  * This function does not take ownership of any members of blurg_formatted_text_t
 */
-BLURGAPI blurg_rect_t* blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *texts, int count, float maxWidth, int *rectCount, float *width, float *height);
+BLURGAPI void blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *texts, int count, int measureCursor, float maxWidth, blurg_result_t *result);
 
 /*
  * Measures the provided string, size is written to width+height
@@ -162,10 +178,7 @@ BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, flo
 */
 BLURGAPI void blurg_measure_formatted(blurg_t *blurg, blurg_formatted_text_t *texts, int count, float maxWidth, float* width, float *height);
 
-/*
- * Frees a rectangle array returned by a  blurg_build_* function
-*/
-BLURGAPI void blurg_free_rects(blurg_rect_t *rects);
+BLURGAPI void blurg_free_result(blurg_result_t *result);
 /*
  * Destroys a blurg instance and all associated fonts.
  * Does NOT free rectangle arrays returned from blurg_free_*

@@ -63,17 +63,13 @@ namespace BlurgText
                 return ToFont(blurg_font_query(Handle, (IntPtr)p, weight, italic ? 1 : 0));
         }
 
-        static BlurgResult? GetResult(IntPtr ptr, int count, float w, float h) =>
-            ptr == IntPtr.Zero ? null : new BlurgResult(ptr, count, w, h);
-
-        public BlurgResult? BuildString(BlurgFont font, float size, BlurgColor color, string text)
+        public BlurgResult BuildString(BlurgFont font, float size, BlurgColor color, string text)
         {
             fixed (char *p = text)
             {
-                int rectCount;
-                float w, h;
-                var rects = blurg_build_string_utf16(Handle, font.Handle, size, color, (IntPtr)p, &rectCount, &w, &h);
-                return GetResult(rects, rectCount, w, h);
+                blurg_result_t res;
+                blurg_build_string_utf16(Handle, font.Handle, size, color, (IntPtr)p, &res);
+                return new BlurgResult(res);
             }
         }
         
@@ -87,17 +83,17 @@ namespace BlurgText
             return new Vector2(w, h);
         }
 
-        public BlurgResult? BuildFormattedText(BlurgFormattedText text, float maxWidth = 0) =>
-            BuildFormattedText(MemoryMarshal.CreateSpan(ref text, 1), maxWidth);
+        public BlurgResult? BuildFormattedText(BlurgFormattedText text, bool measureCursor = false, float maxWidth = 0) =>
+            BuildFormattedText(MemoryMarshal.CreateSpan(ref text, 1), measureCursor, maxWidth);
 
-        public BlurgResult? BuildFormattedText(ReadOnlySpan<BlurgFormattedText> texts, float maxWidth = 0) =>
-            FormattedTextCall(false, texts, maxWidth).Result;
+        public BlurgResult? BuildFormattedText(ReadOnlySpan<BlurgFormattedText> texts, bool measureCursor = false, float maxWidth = 0) =>
+            FormattedTextCall(false, measureCursor, texts, maxWidth).Result;
         
         public Vector2 MeasureFormattedText(BlurgFormattedText text, float maxWidth = 0) =>
             MeasureFormattedText(MemoryMarshal.CreateSpan(ref text, 1), maxWidth);
         
         public Vector2 MeasureFormattedText(ReadOnlySpan<BlurgFormattedText> texts, float maxWidth = 0) =>
-            FormattedTextCall(true, texts, maxWidth).Size;
+            FormattedTextCall(true, false, texts, maxWidth).Size;
 
         struct ResultOrSize
         {
@@ -105,7 +101,7 @@ namespace BlurgText
             public Vector2 Size;
         }
         
-        ResultOrSize FormattedTextCall(bool measure, ReadOnlySpan<BlurgFormattedText> text, float maxWidth)
+        ResultOrSize FormattedTextCall(bool measure, bool cursor, ReadOnlySpan<BlurgFormattedText> text, float maxWidth)
         {
             Span<blurg_formatted_text_t> native = stackalloc blurg_formatted_text_t[text.Length];
             Span<GCHandle> handles = stackalloc GCHandle[text.Length];
@@ -144,9 +140,8 @@ namespace BlurgText
             }
 
             int st = 0;
-            IntPtr retVal;
             float w = 0, h = 0;
-            int rectCount;
+            blurg_result_t res = new blurg_result_t();
             
             fixed (blurg_style_span_t* sptr = styles)
             {
@@ -177,13 +172,11 @@ namespace BlurgText
                 {
                     if (measure)
                     {
-                        retVal = IntPtr.Zero;
-                        rectCount = 0;
                         blurg_measure_formatted(Handle, (IntPtr)fmt, text.Length, maxWidth, &w, &h);
                     }
                     else
                     {
-                        retVal = blurg_build_formatted(Handle, (IntPtr)fmt, text.Length, maxWidth, &rectCount, &w, &h);
+                        blurg_build_formatted(Handle, (IntPtr)fmt, text.Length, cursor ? 1 : 0, maxWidth, &res);
                     }
                 }
             }
@@ -202,7 +195,7 @@ namespace BlurgText
             if (measure)
                 return new ResultOrSize() { Size = new Vector2(w, h) };
             else
-                return new ResultOrSize() { Result = GetResult(retVal, rectCount, w, h) };
+                return new ResultOrSize() { Result = new BlurgResult(res) };
         }
         
         private unsafe void NativeAllocate(IntPtr texture, int width, int height)
