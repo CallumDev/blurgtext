@@ -33,7 +33,7 @@ target_compile_definitions(blurgtext PRIVATE -DBUILDING_BLURG)
 target_include_directories(blurgtext PUBLIC "include")
 
 # libunibreak
-file(GLOB_RECURSE UNIBREAK_SOURCES RELATIVE ${CMAKE_SOURCE_DIR} "deps/libunibreak/src/*.c")
+file(GLOB_RECURSE UNIBREAK_SOURCES RELATIVE ${CMAKE_CURRENT_LIST_DIR} "deps/libunibreak/src/*.c")
 add_library(unibreak STATIC
     ${UNIBREAK_SOURCES}
 )
