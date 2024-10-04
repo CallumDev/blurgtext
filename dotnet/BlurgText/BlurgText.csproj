@@ -9,7 +9,6 @@
 
     <PropertyGroup>
         <!-- Nuget Properties. -->
-        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
         <PackageId>BlurgText</PackageId>
         <Version>0.1.0$(VersionSuffix)</Version>
         <Authors>Callum McGing</Authors>
@@ -44,19 +43,19 @@
     </ItemGroup>
     <!-- Native libraries -->
     <ItemGroup>
-      <Content Include="..\..\build\nuget\linux-x64\libblurgtext.so">
+      <Content Include="..\..\build\nuget\linux-x64\libblurgtext.so" Condition="Exists('..\..\build\nuget\linux-x64\libblurgtext.so')">
         <Link>runtimes\linux-x64\native\libblurgtext.so</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <PackagePath>runtimes/linux-x64/native/</PackagePath>
         <Pack>true</Pack>
       </Content>
-      <Content Include="..\..\build\nuget\win-x64\blurgtext.dll">
+      <Content Include="..\..\build\nuget\win-x64\blurgtext.dll" Condition="Exists('..\..\build\nuget\win-x64\blurgtext.dll')">
           <Link>runtimes\win-x64\native\blurgtext.dll</Link>
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
           <PackagePath>runtimes/win-x64/native/</PackagePath>
           <Pack>true</Pack>
       </Content>
-      <Content Include="..\..\build\nuget\win-x86\blurgtext.dll">
+      <Content Include="..\..\build\nuget\win-x86\blurgtext.dll" Condition="Exists('..\..\build\nuget\win-x86\blurgtext.dll')">
         <Link>runtimes\win-x86\native\blurgtext.dll</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <PackagePath>runtimes/win-x86/native/</PackagePath>
