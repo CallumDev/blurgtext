@@ -7,5 +7,5 @@ public struct BlurgCursor
 {
     public int X;
     public int Y;
-    public float Height;
+    public int Height;
 }
