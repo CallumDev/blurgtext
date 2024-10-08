@@ -299,7 +299,7 @@ int main(int argc, char* argv[])
     snprintf(strBuffer, 1000, "size of ABCDEFG %f, %f", testW, testH);
     drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), strBuffer, 350, 400);
 
-    drawString(blurg, font, "Hello World!\nNewline test", 8, 8);
+    drawString(blurg, font, "Hello World!\r\nCRLF\r\n\r\nCRLFx2", 8, 8);
     // testing fallback with a bread emoji
     drawString(blurg, blurg_font_query(blurg, "Segoe Print", BLURG_WEIGHT_BOLD, 0), "Hello World from native C \xF0\x9F\x8D\x9E", 400, 8);
     blurg_font_t *med = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0);

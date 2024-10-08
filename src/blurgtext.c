@@ -94,16 +94,19 @@ static void blurg_get_lines(const void *text, int inLen, int* textLen, blurg_enc
     }
     *textLen = total;
     int last = 0;
+    #define CHAR(idx) (encoding == blurg_encoding_utf16 ? (uint8_t)(((uint16_t*)text)[(idx)]) : ((uint8_t*)text)[(idx)])
     for(int i = 0; i < total; i++) {
         if((*breaks)[i] == LINEBREAK_MUSTBREAK) {
+            int isCRLF = (i - 1 > 0) && CHAR(i-1) == '\r' && CHAR(i) == '\n';
             if(last == i) {
                 list_text_line_add(lines, (text_line){ .isBreak = 1, .textStart = i, .textCount = 1, .paraIndex = paraIndex});
             } else {
-                list_text_line_add(lines, (text_line){ .isBreak = 0, .textStart = last, .textCount = i - last, .paraIndex = paraIndex});
+                list_text_line_add(lines, (text_line){ .isBreak = 0, .textStart = last, .textCount = i - last - isCRLF, .paraIndex = paraIndex});
             }
             last = i + 1;
         }
     }
+    #undef CHAR
     if(total - last > 0) {
         list_text_line_add(lines, (text_line){.isBreak = 0, .textStart = last, .textCount = total - last, .paraIndex = paraIndex });
     }
