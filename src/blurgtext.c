@@ -156,14 +156,14 @@ static uint32_t get_codepoint(const void *str, blurg_formatted_text_t *text, int
 {
     if(text->encoding == blurg_encoding_utf16) 
     {
-        uint16_t *s = &((uint16_t*)str)[cluster];
+        uint16_t *s = &(((uint16_t*)str)[cluster]);
         if (s[0] >= 0xD800 && s[0] <= 0xDBFF)
         {
             if (s[1] >= 0xDC00 && s[1] <= 0xDFFF)
             {
                 *count = 2;
-                uint32_t high = ((s[0] & ((1 << 6) -1)) << 10) | (s[1] & ((1 << 10) -1));
-                uint32_t low = (s[0] >> 6) & ((1 << 5) - 1);
+                uint32_t low = ((s[0] & ((1 << 6) -1)) << 10) | (s[1] & ((1 << 10) -1));
+                uint32_t high = (s[0] >> 6) & ((1 << 5) - 1);
                 return (high+1) << 16 | low;
             }
             else
