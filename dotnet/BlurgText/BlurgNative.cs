@@ -34,6 +34,7 @@ namespace BlurgText
         public struct blurg_formatted_text_t
         {
             public IntPtr text;
+            public int textLen;
             public blurg_encoding_t encoding;
             public BlurgAlignment alignment;
             public IntPtr spans;
@@ -92,14 +93,14 @@ namespace BlurgText
 
         [DllImport("libblurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void blurg_build_string_utf16(IntPtr blurg, IntPtr font, float size, uint color,
-            IntPtr text, blurg_result_t *result);
+            IntPtr text, int textLen, blurg_result_t *result);
 
         [DllImport("libblurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void blurg_build_formatted(IntPtr formatted, IntPtr texts, int count,
             int measureCursor, float maxWidth, blurg_result_t* result);
         
         [DllImport("libblurgtext", CallingConvention = CallingConvention.Cdecl)]
-        public static extern unsafe void blurg_measure_string_utf16(IntPtr blurg, IntPtr font, float size, IntPtr text, float *width, float *height);
+        public static extern unsafe void blurg_measure_string_utf16(IntPtr blurg, IntPtr font, float size, IntPtr text, int textLen, float *width, float *height);
         
         [DllImport("libblurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void blurg_measure_formatted(IntPtr blurg, IntPtr texts, int count, float maxWidth, float* width, float *height);

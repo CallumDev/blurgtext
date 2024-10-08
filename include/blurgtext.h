@@ -114,6 +114,7 @@ typedef enum {
 
 typedef struct _blurg_formatted_text {
   const void *text;
+  int textLen;
   blurg_encoding_t encoding;
   blurg_align_t alignment;
   blurg_style_span_t *spans;
@@ -159,8 +160,8 @@ BLURGAPI blurg_font_t *blurg_font_query(blurg_t *blurg, const char *familyName, 
 /*
  * Turns a single string into a rectangle array written into *result. Free the result with blurg_free_result
 */
-BLURGAPI void blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, blurg_result_t *result);
-BLURGAPI void blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const uint16_t *text, blurg_result_t *result);
+BLURGAPI void blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int textLen, blurg_result_t *result);
+BLURGAPI void blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const uint16_t *text, int textLen, blurg_result_t *result);
 /*
  * Turns an array of formatted text objects into a rectangle array written into *result. Free the result with blurg_free_result
  * Optionally measures cursor position if measureCursors is true
@@ -171,8 +172,8 @@ BLURGAPI void blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *text
 /*
  * Measures the provided string, size is written to width+height
 */
-BLURGAPI void blurg_measure_string(blurg_t *blurg, blurg_font_t *font, float size, const char *text, float *width, float *height);
-BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, const uint16_t *text, float *width, float *height);
+BLURGAPI void blurg_measure_string(blurg_t *blurg, blurg_font_t *font, float size, const char *text, int textLen, float *width, float *height);
+BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, const uint16_t *text, int textLen, float *width, float *height);
 /*
  * Measures the provided formatted texts, size is written to width+height
 */

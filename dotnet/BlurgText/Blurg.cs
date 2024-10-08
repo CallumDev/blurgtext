@@ -62,13 +62,17 @@ namespace BlurgText
             fixed (byte* p = native_name.ToUTF8Z())
                 return ToFont(blurg_font_query(Handle, (IntPtr)p, weight, italic ? 1 : 0));
         }
+        
+        // Native blurgtext interprets 0 length as run strlen
+        // Work around lack of null terminator by using zero inited memory
 
         public BlurgResult BuildString(BlurgFont font, float size, BlurgColor color, string text)
         {
             fixed (char *p = text)
             {
                 blurg_result_t res;
-                blurg_build_string_utf16(Handle, font.Handle, size, color, (IntPtr)p, &res);
+                ulong zero = 0;
+                blurg_build_string_utf16(Handle, font.Handle, size, color, text.Length > 0 ? (IntPtr)p : (IntPtr)(&zero), text.Length, &res);
                 return new BlurgResult(res);
             }
         }
@@ -78,7 +82,8 @@ namespace BlurgText
             float w, h;
             fixed (char* p = text)
             {
-                blurg_measure_string_utf16(Handle, font.Handle, size, (IntPtr)p, &w, &h);
+                ulong zero = 0;
+                blurg_measure_string_utf16(Handle, font.Handle, size, text.Length > 0 ? (IntPtr)p : (IntPtr)(&zero), text.Length, &w, &h);
             }
             return new Vector2(w, h);
         }
@@ -103,6 +108,10 @@ namespace BlurgText
         
         ResultOrSize FormattedTextCall(bool measure, bool cursor, ReadOnlySpan<BlurgFormattedText> text, float maxWidth)
         {
+            // Native blurgtext interprets 0 length as run strlen
+            // Work around lack of null terminator by using zero inited memory
+            ulong zero = 0;
+            IntPtr zeroPtr = (IntPtr)(&zero);
             Span<blurg_formatted_text_t> native = stackalloc blurg_formatted_text_t[text.Length];
             Span<GCHandle> handles = stackalloc GCHandle[text.Length];
             int spanAmount = 0;
@@ -110,13 +119,15 @@ namespace BlurgText
             blurg_style_span_t[]? stylesArray = null;
             for (int i = 0; i < text.Length; i++)
             {
-                handles[i] = GCHandle.Alloc(text[i].Text, GCHandleType.Pinned);
+                if(text[i].Text.Length > 0)
+                    handles[i] = GCHandle.Alloc(text[i].Text, GCHandleType.Pinned);
                 spanAmount += text[i].Spans?.Length ?? 0;
                 native[i] = new blurg_formatted_text_t()
                 {
                     alignment = text[i].Alignment,
                     encoding = blurg_encoding_t.blurg_encoding_utf16,
-                    text = handles[i].AddrOfPinnedObject(),
+                    text = (text[i].Text.Length > 0) ? handles[i].AddrOfPinnedObject() : zeroPtr,
+                    textLen = text[i].Text.Length,
                     defaultFont = text[i].DefaultFont.Handle,
                     defaultSize = text[i].DefaultSize,
                     defaultBackground = text[i].DefaultBackground,
@@ -189,7 +200,8 @@ namespace BlurgText
             
             for (int i = 0; i < handles.Length; i++)
             {
-                handles[i].Free();
+                if(text[i].Text.Length > 0)
+                    handles[i].Free();
             }
 
             if (measure)

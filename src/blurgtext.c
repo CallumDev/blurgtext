@@ -79,16 +79,16 @@ BLURGAPI void blurg_destroy(blurg_t *blurg)
     free(blurg);
 }
 
-static void blurg_get_lines(const void *text, int* textLen, blurg_encoding_t encoding, list_text_line *lines, char **breaks, int paraIndex)
+static void blurg_get_lines(const void *text, int inLen, int* textLen, blurg_encoding_t encoding, list_text_line *lines, char **breaks, int paraIndex)
 {
     int total;
     if(encoding == blurg_encoding_utf16) {
-        total = utf16_strlen((utf16_t*)text);
+        total = inLen > 0 ? inLen : utf16_strlen((utf16_t*)text);
         *breaks = malloc(total);
         set_linebreaks_utf16((utf16_t*)text, total, NULL, *breaks);
     }
     else {
-        total = strlen((char*)text);
+        total = inLen > 0 ? inLen : strlen((char*)text);
         *breaks = malloc(total);
         set_linebreaks_utf8(text, total, NULL, *breaks);
     }
@@ -822,7 +822,7 @@ BLURGAPI void blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *text
     for(int i = 0; i < count; i++) {
         paragraphs[i].start = sumParagraphs;
         paragraphs[i].lineOffset = lines.count;
-        blurg_get_lines(texts[i].text, &paragraphs[i].total, texts[i].encoding, &lines, &paragraphs[i].breaks, i);
+        blurg_get_lines(texts[i].text, texts[i].textLen, &paragraphs[i].total, texts[i].encoding, &lines, &paragraphs[i].breaks, i);
         sumParagraphs += paragraphs[i].total;
         if(!paragraphs[i].total) {
             paragraphs[i].attributes = NULL;
@@ -856,7 +856,9 @@ BLURGAPI void blurg_build_formatted(blurg_t *blurg, blurg_formatted_text_t *text
                 }
                 for(int k = texts[i].spans[j].startIndex; k <= texts[i].spans[j].endIndex; k++) 
                 {
-                    attributes[k] = j;
+                    if(k >= 0 && k < paragraphs[i].total) {
+                        attributes[k] = j; //range check
+                    }
                 }
             }
             paragraphs[i].attributes = attributes;
@@ -999,7 +1001,7 @@ BLURGAPI void blurg_measure_formatted(blurg_t *blurg, blurg_formatted_text_t *te
 
     for(int i = 0; i < count; i++) {
         int startIdx = lines.count;
-        blurg_get_lines(texts[i].text, &total, texts[i].encoding, &lines, &breaks, i);
+        blurg_get_lines(texts[i].text, texts[i].textLen, &total, texts[i].encoding, &lines, &breaks, i);
         if(!total) {
             free(breaks);
             continue;
@@ -1067,7 +1069,7 @@ BLURGAPI void blurg_measure_formatted(blurg_t *blurg, blurg_formatted_text_t *te
     }
 }
 
-BLURGAPI void blurg_measure_string(blurg_t *blurg, blurg_font_t *font, float size, const char *text, float *width, float *height)
+BLURGAPI void blurg_measure_string(blurg_t *blurg, blurg_font_t *font, float size, const char *text, int textLen, float *width, float *height)
 {
     blurg_formatted_text_t formatted = {
         .defaultFont = font,
@@ -1077,12 +1079,13 @@ BLURGAPI void blurg_measure_string(blurg_t *blurg, blurg_font_t *font, float siz
         .spanCount = 0,
         .spans = NULL,
         .text = text,
+        .textLen = textLen,
         .alignment = blurg_align_left,
     };
     blurg_measure_formatted(blurg, &formatted, 1, 0, width, height);
 }
 
-BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, const uint16_t *text, float *width, float *height)
+BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, const uint16_t *text, int textLen, float *width, float *height)
 {
     blurg_formatted_text_t formatted = {
         .defaultFont = font,
@@ -1092,12 +1095,13 @@ BLURGAPI void blurg_measure_string_utf16(blurg_t *blurg, blurg_font_t *font, flo
         .spanCount = 0,
         .spans = NULL,
         .text = text,
+        .textLen = textLen,
         .alignment = blurg_align_left,
     };
     blurg_measure_formatted(blurg, &formatted, 1, 0, width, height);
 }
 
-BLURGAPI void blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, blurg_result_t *result)
+BLURGAPI void blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const char *text, int textLen, blurg_result_t *result)
 {
     blurg_formatted_text_t formatted = {
         .defaultFont = font,
@@ -1110,12 +1114,13 @@ BLURGAPI void blurg_build_string(blurg_t *blurg, blurg_font_t *font, float size,
         .spanCount = 0,
         .spans = NULL,
         .text = text,
+        .textLen = textLen,
         .alignment = blurg_align_left,
     };
     blurg_build_formatted(blurg, &formatted, 1, 0, 0, result);
 }
 
-BLURGAPI void blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const uint16_t *text, blurg_result_t *result)
+BLURGAPI void blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *font, float size, blurg_color_t color, const uint16_t *text, int textLen, blurg_result_t *result)
 {
     blurg_formatted_text_t formatted = {
         .defaultFont = font,
@@ -1128,6 +1133,7 @@ BLURGAPI void blurg_build_string_utf16(blurg_t *blurg, blurg_font_t *font, float
         .spanCount = 0,
         .spans = NULL,
         .text = text,
+        .textLen = textLen,
         .alignment = blurg_align_left,
     };
     blurg_build_formatted(blurg, &formatted, 1, 0, 0, result);

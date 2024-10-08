@@ -156,7 +156,7 @@ static void drawRects(blurg_rect_t *rects, int count, int x, int y)
 static void drawString(blurg_t* blurg, blurg_font_t *font, const char *text, int x, int y)
 {
     blurg_result_t result;
-    blurg_build_string(blurg, font, 24.0, 0xFF0000FF, text, &result);
+    blurg_build_string(blurg, font, 24.0, 0xFF0000FF, text, 0, &result);
     drawRects(result.rects, result.rectCount, x, y);
     blurg_free_result(&result);
 }
@@ -295,7 +295,7 @@ int main(int argc, char* argv[])
 
     char strBuffer[1000];
     float testW, testH;
-    blurg_measure_string(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), 24.0, "ACDEFG", &testW, &testH);
+    blurg_measure_string(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), 24.0, "ACDEFG", 0, &testW, &testH);
     snprintf(strBuffer, 1000, "size of ABCDEFG %f, %f", testW, testH);
     drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), strBuffer, 350, 400);
 
@@ -357,6 +357,7 @@ int main(int argc, char* argv[])
 
     blurg_formatted_text_t formatted = {
         .text = "This is an extremely long string that we are going to be wrapping based on a maxWidth (350px) amount. Let's have a look and see how we get on.\nManual line break\nABCDEFGHIJKLMNOPQRSTUVWXYZNOWIKNOWMYABCSNEXTTIMEWON'TYOUSINGWITHME",
+        .textLen = 0,
         .defaultFont = font,
         .defaultSize = 20.0,
         .defaultColor = 0xFFFFFFFF,
@@ -371,13 +372,14 @@ int main(int argc, char* argv[])
 
     int fcount;
     blurg_result_t result;
-    blurg_build_formatted(blurg, &formatted, 1, 350, 0, &result);
+    blurg_build_formatted(blurg, &formatted, 1, 0, 350, &result);
     drawRects(result.rects, result.rectCount, 8, 100);
     blurg_free_result(&result);
 
     blurg_formatted_text_t utf16 = {
         // HELLO, WIDE! as a utf-16 encoded string. wchar_t on unix is 32-bit, so not portable here
         .text = "H\0E\0L\0L\0O\0,\0 \0W\0I\0D\0E\0!\0\0",
+        .textLen = 0,
         .defaultFont = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_THIN, 1),
         .defaultSize = 20.0,
         .defaultColor = BLURG_RGBA(0x64, 0x95, 0xED, 0xFF),
@@ -390,7 +392,7 @@ int main(int argc, char* argv[])
         .encoding = blurg_encoding_utf16,
     };
 
-    blurg_build_formatted(blurg, &utf16, 1, 350, 1, &result);
+    blurg_build_formatted(blurg, &utf16, 1, 1, 350, &result);
     drawRects(result.rects, result.rectCount, 200, 100);
     // draw a cursor after the first L in HELLO
     drawSingle(200 + result.cursors[2].x, 100 + result.cursors[2].y, 1, result.cursors[2].height, 0xFFFFFFFF);
