@@ -49,14 +49,14 @@
         <PackagePath>runtimes/linux-x64/native/</PackagePath>
         <Pack>true</Pack>
       </Content>
-      <Content Include="..\..\build\nuget\win-x64\blurgtext.dll" Condition="Exists('..\..\build\nuget\win-x64\blurgtext.dll')">
-          <Link>runtimes\win-x64\native\blurgtext.dll</Link>
+      <Content Include="..\..\build\nuget\win-x64\libblurgtext.dll" Condition="Exists('..\..\build\nuget\win-x64\libblurgtext.dll')">
+          <Link>runtimes\win-x64\native\libblurgtext.dll</Link>
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
           <PackagePath>runtimes/win-x64/native/</PackagePath>
           <Pack>true</Pack>
       </Content>
-      <Content Include="..\..\build\nuget\win-x86\blurgtext.dll" Condition="Exists('..\..\build\nuget\win-x86\blurgtext.dll')">
-        <Link>runtimes\win-x86\native\blurgtext.dll</Link>
+      <Content Include="..\..\build\nuget\win-x86\libblurgtext.dll" Condition="Exists('..\..\build\nuget\win-x86\libblurgtext.dll')">
+        <Link>runtimes\win-x86\native\libblurgtext.dll</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <PackagePath>runtimes/win-x86/native/</PackagePath>
         <Pack>true</Pack>

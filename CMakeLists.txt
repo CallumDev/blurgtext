@@ -15,9 +15,10 @@ add_library(blurgtext SHARED
     src/sysfonts_directwrite.cpp
 )
 
+# blurgtext needs lib prefix on all platforms
+set_target_properties(blurgtext PROPERTIES PREFIX "lib")
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    #remove lib prefix on windows mingw
-    set_target_properties(blurgtext PROPERTIES PREFIX "")
     #enable directwrite (both mingw and MSVC)
     target_compile_definitions(blurgtext PRIVATE -DBT_ENABLE_DIRECTWRITE=1)
     target_link_libraries(blurgtext PRIVATE gdi32 dwrite)
