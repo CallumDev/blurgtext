@@ -24,6 +24,10 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     target_link_libraries(blurgtext PRIVATE gdi32 dwrite)
 endif()
 
+if(APPLE)
+    target_link_libraries(blurgtext PRIVATE "-framework CoreFoundation" "-framework CoreText" "-framework CoreGraphics")
+endif()
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU" AND BT_MINGW_BUNDLE_LIBGCC)
     # link libgcc/libstdc++ into our .dll
     target_link_options(blurgtext PRIVATE -static-libgcc -static-libstdc++ -static)
@@ -56,7 +60,8 @@ set(RAQM_VERSION_MICRO "1")
 
 configure_file(deps/libraqm/src/raqm-version.h.in raqm-version.h)
 
-if(WIN32)
+# Freetype dependency
+if(WIN32 OR APPLE)
     include(ExternalProject)
 
 if(MSVC)
@@ -84,7 +89,7 @@ endif()
     ExternalProject_Get_Property(FTHB INSTALL_DIR)
     set(FT_HB_INSTALL_DIR ${INSTALL_DIR})
 
-    
+
 
     add_library(FREETYPE_LIBRARY STATIC IMPORTED GLOBAL)
     set_property(TARGET FREETYPE_LIBRARY PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${FT_HB_INSTALL_DIR}/include/freetype2")
