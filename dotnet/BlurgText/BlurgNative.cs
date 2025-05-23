@@ -74,6 +74,9 @@ namespace BlurgText
         public static extern IntPtr blurg_font_add_file(IntPtr blurg, IntPtr filename);
 
         [DllImport("libblurgtext", CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr blurg_font_add_memory(IntPtr blurg, IntPtr data, int len, int copy);
+
+        [DllImport("libblurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr blurg_font_query(IntPtr blurg, IntPtr familyName, int weight, int italic);
 
         [DllImport("libblurgtext", CallingConvention = CallingConvention.Cdecl)]

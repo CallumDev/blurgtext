@@ -55,6 +55,12 @@ namespace BlurgText
                 return ToFont(blurg_font_add_file(Handle, (IntPtr)p));
         }
 
+        public BlurgFont? AddFontFromMemory(ReadOnlySpan<byte> data)
+        {
+            fixed (byte* b = data)
+                return ToFont(blurg_font_add_memory(Handle, (IntPtr)b, data.Length, 1));
+        }
+
         public BlurgFont? QueryFont(string familyName, FontWeight weight, bool italic)
         {
             Span<byte> nbytes = stackalloc byte[512];
