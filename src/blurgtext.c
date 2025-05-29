@@ -5,8 +5,12 @@
 #include "list.h"
 #include "util.h"
 #include <math.h>
+#include <plutosvg-ft.h>
+#include FT_MODULE_H
 
 #define LAYER_MAX (4)
+
+
 
 DEFINE_LIST(blurg_rect_t);
 IMPLEMENT_LIST(blurg_rect_t);
@@ -60,6 +64,10 @@ BLURGAPI blurg_t *blurg_create(blurg_texture_allocate textureAllocate, blurg_tex
         printf("FT_Init_FreeType failed\n");
         free(blurg);
         return NULL;
+    }
+    error = FT_Property_Set(blurg->library, "ot-svg", "svg-hooks", &plutosvg_ft_hooks);
+    if(error) {
+        printf("FT_Property_Set for SVG failed\n");
     }
     glyphatlas_init(blurg);
     font_manager_init(blurg);

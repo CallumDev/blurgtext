@@ -6,10 +6,13 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
  cmake_policy(SET CMP0135 NEW)
 endif()
 
- SET(FREETYPE_URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.xz" "https://downloads.sourceforge.net/project/freetype/freetype2/2.13.2/freetype-2.13.2.tar.xz")
- SET(HARFBUZZ_URL "https://github.com/harfbuzz/harfbuzz/releases/download/9.0.0/harfbuzz-9.0.0.tar.xz")
+SET(FREETYPE_URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.xz" "https://downloads.sourceforge.net/project/freetype/freetype2/2.13.2/freetype-2.13.2.tar.xz")
+SET(HARFBUZZ_URL "https://github.com/harfbuzz/harfbuzz/releases/download/9.0.0/harfbuzz-9.0.0.tar.xz")
+
+include(GNUInstallDirs)
+
 if(MSVC)
-        set(harfbuzz_lib_name harfbuzz.lib)
+    set(harfbuzz_lib_name harfbuzz.lib)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(freetype_lib_name freetyped.lib)
     else()
@@ -24,7 +27,7 @@ endif()
     ExternalProject_Add(
         FT1
         URL "${FREETYPE_URL}"
-        BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${freetype_lib_name}
+        BUILD_BYPRODUCTS <INSTALL_DIR>/${CMAKE_INSTALL_LIBDIR}/${freetype_lib_name}
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -33,6 +36,7 @@ endif()
         -DFT_DISABLE_ZLIB=True
         -DFT_DISABLE_PNG=True
         -DFT_DISABLE_BROTLI=True
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}
     )
 
@@ -43,14 +47,15 @@ endif()
     ExternalProject_Add(
         HB
         URL "${HARFBUZZ_URL}"
-        BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${harfbuzz_lib_name}
+        BUILD_BYPRODUCTS <INSTALL_DIR>/${CMAKE_INSTALL_LIBDIR}/${harfbuzz_lib_name}
         DEPENDS FT1
         CMAKE_ARGS
         -DCMAKE_PREFIX_PATH=${FT1_DIR}
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-        -DHB_HAVE_FREETYPE=On
+        -DHB_HAVE_FREETYPE=ON
         -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         -G ${CMAKE_GENERATOR}
     )
 
@@ -62,7 +67,7 @@ endif()
         FT2
         URL "${FREETYPE_URL}"
         DEPENDS HB
-        BUILD_BYPRODUCTS <INSTALL_DIR>/lib/${freetype_lib_name}
+        BUILD_BYPRODUCTS <INSTALL_DIR>/${CMAKE_INSTALL_LIBDIR}/${freetype_lib_name}
         CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -73,7 +78,9 @@ endif()
         -DFT_DISABLE_ZLIB=True
         -DFT_DISABLE_PNG=True
         -DFT_DISABLE_BROTLI=True
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}
+        -DCMAKE_VERBOSE_BUILD=ON
         -G ${CMAKE_GENERATOR}
     )
 

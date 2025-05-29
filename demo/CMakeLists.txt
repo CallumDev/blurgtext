@@ -11,6 +11,7 @@ configure_file(Roboto-Italic.ttf Roboto-Italic.ttf COPYONLY)
 configure_file(Roboto-BoldItalic.ttf Roboto-BoldItalic.ttf COPYONLY)
 configure_file(Roboto-ThinItalic.ttf Roboto-ThinItalic.ttf COPYONLY)
 configure_file(Roboto-Black.ttf Roboto-Black.ttf COPYONLY)
+configure_file(EmojiOneColor.otf EmojiOneColor.otf COPYONLY)
 
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU")

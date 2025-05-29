@@ -30,15 +30,15 @@ mkdir -p build/nuget/win-arm64
 mkdir -p build/nuget/linux-x64
 
 cd build/nuget/win-x64
-cmake ../../.. $CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=../../../toolchains/mingw-w64-x86_64.cmake && ninja || { echo >&2 "Build failed"; exit 1; }
+cmake ../../.. $CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=../../../toolchains/mingw-w64-x86_64.cmake && ninja -v || { echo >&2 "Build failed"; exit 1; }
 cd ../../..
 
 cd build/nuget/win-x86
-cmake ../../.. $CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=../../../toolchains/mingw-w64-i686.cmake && ninja || { echo >&2 "Build failed"; exit 1; }
+cmake ../../.. $CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=../../../toolchains/mingw-w64-i686.cmake && ninja -v || { echo >&2 "Build failed"; exit 1; }
 cd ../../..
 
 cd build/nuget/linux-x64
-cmake ../../.. $CMAKE_ARGS && ninja || { echo >&2 "Build failed"; exit 1; }
+cmake ../../.. $CMAKE_ARGS && ninja -v || { echo >&2 "Build failed"; exit 1; }
 cd ../../..
 
 cd dotnet/BlurgText

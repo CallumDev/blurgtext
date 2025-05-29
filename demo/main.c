@@ -213,6 +213,7 @@ int main(int argc, char* argv[])
     // Generate string
     blurg_t *blurg = blurg_create(tallocate, tupdate);
     blurg_font_t *font = loadFont(blurg, "Roboto-Regular.ttf");
+    blurg_font_t *emojiFont = loadFont(blurg, "EmojiOneColor.otf");
     if(!blurg_enable_system_fonts(blurg)) {
         printf("System fonts not available\n");
     }
@@ -301,13 +302,19 @@ int main(int argc, char* argv[])
 
     drawString(blurg, font, "Hello World!\r\nCRLF\r\n\r\nCRLFx2", 8, 8);
     // testing fallback with a bread emoji
-    drawString(blurg, blurg_font_query(blurg, "Segoe Print", BLURG_WEIGHT_BOLD, 0), "Hello World from native C \xF0\x9F\x8D\x9E", 400, 8);
+    drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_BOLD, 0), "Hello World from native C \xF0\x9F\x8D\x9E", 400, 8);
     blurg_font_t *med = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0);
     snprintf(strBuffer, 1000, "medium fallback\n(actual: %d weight, %d italic)", blurg_font_get_weight(med), blurg_font_get_italic(med));
     drawString(blurg, blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 0), strBuffer, 400, 100);
     blurg_font_t *medItalic = blurg_font_query(blurg, "Roboto", BLURG_WEIGHT_MEDIUM, 1);
     snprintf(strBuffer, 1000, "medium-italic fallback\n(actual: %d weight, %d italic)", blurg_font_get_weight(medItalic), blurg_font_get_italic(medItalic));
     drawString(blurg, medItalic, strBuffer, 400, 200);
+
+    // testing emoji font
+    drawString(blurg, font, "SVG EmojiOne Test", 400, 300);
+    drawString(blurg, emojiFont, "\xF0\x9F\x90\x88 \xF0\x9F\xA5\x92", 400, 330);
+
+    //formatted
     blurg_style_span_t spans[5];
     memset(spans, 0, sizeof(blurg_style_span_t) * 5);
     spans[0].startIndex = 5;
