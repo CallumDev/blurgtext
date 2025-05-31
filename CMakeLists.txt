@@ -4,6 +4,8 @@ project(blurgtext)
 option(BT_BUILD_DEMO "Build demo program" ON)
 option(BT_MINGW_BUNDLE_LIBGCC "Statically link libgcc on windows builds" ON)
 option(BT_ENABLE_SYSTEMFONTS "Enable loading system fonts" ON)
+option(FT_DOWNLOADS_DIR "Folder to contain downloaded source files" "${CMAKE_CURRENT_BINARY_DIR}/sources")
+
 if(APPLE OR NOT UNIX)
     set(BT_BUILD_FTHB_DEFAULT ON)
 else()
@@ -113,6 +115,7 @@ if(BT_BUILD_FTHB)
         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
         -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+        -DFT_DOWNLOADS_DIR=${FT_DOWNLOADS_DIR}
         -G ${CMAKE_GENERATOR}
     )
     ExternalProject_Get_Property(FTHB INSTALL_DIR)

@@ -1,7 +1,6 @@
 #!/bin/bash
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 DOTNET_VERSION=8.0
-CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -G Ninja -DBT_BUILD_DEMO=OFF"
 
 check_command() {
     command -v $1 >/dev/null 2>&1 || { echo >&2 "Cannot find $1 on PATH"; exit 1; }
@@ -24,10 +23,19 @@ fi
 
 cd "$SCRIPT_DIR"
 
+get_abs_filename() {
+  # $1 : relative filename
+  echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+}
+
+mkdir -p build/nuget/sources
 mkdir -p build/nuget/win-x64
 mkdir -p build/nuget/win-x86
 mkdir -p build/nuget/win-arm64
 mkdir -p build/nuget/linux-x64
+
+DOWNLOADS_DIR=$(get_abs_filename build/nuget/sources)
+CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -G Ninja -DBT_BUILD_DEMO=OFF -DFT_DOWNLOADS_DIR=$DOWNLOADS_DIR"
 
 cd build/nuget/win-x64
 cmake ../../.. $CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=../../../toolchains/mingw-w64-x86_64.cmake && ninja -v || { echo >&2 "Build failed"; exit 1; }

@@ -9,7 +9,7 @@ Text rendering library targeted at integration in game engines, making use of:
 - [libunibreak](https://github.com/adah1972/libunibreak)
 - [plutosvg](https://github.com/sammycage/plutosvg)
 
-For ease of distribution, blurgtext statically links to the Freetype and Harfbuzz libraries on macOS or non-unix platforms, or when the `BT_BUILD_FTHB` option is set to `ON`.
+For ease of distribution, blurgtext statically links to the Freetype and Harfbuzz libraries on macOS or non-unix platforms, or when the `BT_BUILD_FTHB` option is set to `ON`. The provided freetype is patched to use stb_image for PNG loading instead of libpng.
 
 SheenBidi, libraqm, libunibreak and plutosvg are always built and statically linked into the library.
 
