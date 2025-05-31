@@ -113,5 +113,8 @@ namespace BlurgText
 
         [DllImport("libblurgtext", CallingConvention = CallingConvention.Cdecl)]
         public static extern void blurg_destroy(IntPtr blurg);
+        
+        [DllImport("libblurgtext", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void blurg_graphemebreaks_utf16(IntPtr s,IntPtr len, IntPtr lang, IntPtr brks);
     }
 }

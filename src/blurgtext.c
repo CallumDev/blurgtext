@@ -2,6 +2,7 @@
 #include "blurgtext_internal.h"
 #include <string.h>
 #include <linebreak.h>
+#include <graphemebreak.h>
 #include "list.h"
 #include "util.h"
 #include <math.h>
@@ -1164,4 +1165,16 @@ BLURGAPI void blurg_free_result(blurg_result_t *result)
         free(result->rects);
     }
     memset(result, 0, sizeof(blurg_result_t));
+}
+
+BLURGAPI void blurg_graphemebreaks_utf8(const char *s, size_t len, const char *lang, char *brks)
+{
+    init_graphemebreak();
+    set_graphemebreaks_utf8(s, len, lang, brks);
+}
+
+BLURGAPI void blurg_graphemebreaks_utf16(const uint16_t *s, size_t len, const char *lang, char *brks)
+{
+    init_graphemebreak();
+    set_graphemebreaks_utf16(s, len, lang, brks);
 }

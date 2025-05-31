@@ -15,6 +15,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <stddef.h>
 
 typedef struct _blurg blurg_t;
 
@@ -185,6 +186,17 @@ BLURGAPI void blurg_free_result(blurg_result_t *result);
  * Does NOT free rectangle arrays returned from blurg_free_*
 */
 BLURGAPI void blurg_destroy(blurg_t *blurg);
+
+/*
+ * libunibreak grapheme break API forwarding
+ */
+
+#define GRAPHEMEBREAK_BREAK        0  /**< Between two graphemes */
+#define GRAPHEMEBREAK_NOBREAK      1  /**< Inside a grapheme */
+#define GRAPHEMEBREAK_INSIDEACHAR  2  /**< Inside a Unicode character */
+
+BLURGAPI void blurg_graphemebreaks_utf8(const char *s, size_t len, const char *lang, char *brks);
+BLURGAPI void blurg_graphemebreaks_utf16(const uint16_t *s, size_t len, const char *lang, char *brks);
 
 #ifdef __cplusplus
 }

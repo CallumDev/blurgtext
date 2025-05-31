@@ -16,6 +16,12 @@ public class Program : GameWindow
     
     public Program(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings) : base(gameWindowSettings, nativeWindowSettings)
     {
+        var str = "\ud83c\udff3\ufe0f\u200d\ud83c\udf08 abc";
+        var breaks = GraphemeBreaks.Get(str);
+        for (int i = 0; i < str.Length; i++)
+        {
+            Console.WriteLine($"[{i}] ({(int)str[i]:X}) => {breaks[i]}");
+        }
     }
 
     string Res(string p)
