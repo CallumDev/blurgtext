@@ -13,6 +13,8 @@ For ease of distribution, blurgtext statically links to the Freetype and Harfbuz
 
 SheenBidi, libraqm, libunibreak and plutosvg are always built and statically linked into the library.
 
+The minimum CMake required version is **3.15**
+
 Software using this library must include the [Harfbuzz license](https://raw.githubusercontent.com/harfbuzz/harfbuzz/main/COPYING), [SheenBidi license](https://github.com/Tehreer/SheenBidi?tab=readme-ov-file#license), [libraqm license](https://github.com/HOST-Oman/libraqm/blob/master/COPYING) and [blurgtext license](LICENSE) as well as the Freetype credit notice:
 
 ```
