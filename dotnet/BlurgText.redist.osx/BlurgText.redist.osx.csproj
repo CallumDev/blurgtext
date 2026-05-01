@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+        <Nullable>enable</Nullable>
+        <Deterministic>true</Deterministic>
+        <DeterministicSourcePaths>true</DeterministicSourcePaths>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <!-- Nuget Properties. -->
+        <PackageId>BlurgText.redist.osx</PackageId>
+        <Version>0.1.0$(VersionSuffix)</Version>
+        <Authors>Callum McGing</Authors>
+        <Description>A platform-independent text layout library. This package contains native dependencies for MacOS.</Description>
+        <PackageProjectUrl>https://github.com/blurgtext/blurgtext</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/blurgtext/blurgtext</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+        <PackageIcon>icon.png</PackageIcon>
+    </PropertyGroup>
+
+    <!-- Package files -->
+    <ItemGroup>
+        <Content Include="README.md" PackagePath="">
+            <Pack>true</Pack>
+        </Content>
+        <Content Include="icon.png" PackagePath="">
+            <Pack>true</Pack>
+        </Content>
+        <Content Include="..\..\LICENSE.txt" PackagePath="">
+            <Link>LICENSE.txt</Link>
+            <Pack>true</Pack>
+        </Content>
+    </ItemGroup>
+
+    <!-- Native libraries -->
+    <ItemGroup>
+      <Content Include="..\..\build\nuget\osx-arm64\libblurgtext.dylib" Condition="Exists('..\..\build\nuget\osx-arm64\libblurgtext.dylib')">
+        <Link>runtimes\osx-arm64\native\libblurgtext.dylib</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <PackagePath>runtimes/osx-arm64/native/</PackagePath>
+        <Pack>true</Pack>
+      </Content>
+      <Content Include="..\..\build\nuget\osx-x64\libblurgtext.dylib" Condition="Exists('..\..\build\nuget\osx-x64\libblurgtext.dylib')">
+        <Link>runtimes\osx-x64\native\libblurgtext.dylib</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <PackagePath>runtimes/osx-x64/native/</PackagePath>
+        <Pack>true</Pack>
+      </Content>
+    </ItemGroup>
+    
+</Project>
