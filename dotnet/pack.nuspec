@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>BlurgText.Native.$rid$</id>
+    <version>$version$</version>
+    <authors>Callum McGing</authors>
+    <license type="expression">MIT</license>
+    <readme>README.md</readme>
+
+    <description>Native dependencies for blurgtext</description>
+    <repository type="git" url="https://github.com/blurgtext/blurgtext" />
+  </metadata>
+  <files>
+    <file src="..\build\nuget\$rid$\$dllname$" target="runtimes\$rid$\native\$dllname$" />
+    <file src="..\README.md" target="README.md"/>
+    <file src="..\LICENSE.txt" target="LICENSE.txt"/>
+  </files>
+</package>

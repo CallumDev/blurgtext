@@ -42,30 +42,4 @@
         </Content>
     </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Condition=" '$(Configuration)' == 'Debug' " Include="../BlurgText.redist.osx/BlurgText.redist.osx.csproj"/>
-      <PackageReference Condition=" '$(Configuration)' == 'Release' " Include="BlurgText.redist.osx" Version='0.1.*'/>
-    </ItemGroup>
-
-    <!-- Native libraries -->
-    <ItemGroup>
-      <Content Include="..\..\build\nuget\linux-x64\libblurgtext.so" Condition="Exists('..\..\build\nuget\linux-x64\libblurgtext.so')">
-        <Link>runtimes\linux-x64\native\libblurgtext.so</Link>
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        <PackagePath>runtimes/linux-x64/native/</PackagePath>
-        <Pack>true</Pack>
-      </Content>
-      <Content Include="..\..\build\nuget\win-x64\libblurgtext.dll" Condition="Exists('..\..\build\nuget\win-x64\libblurgtext.dll')">
-          <Link>runtimes\win-x64\native\libblurgtext.dll</Link>
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-          <PackagePath>runtimes/win-x64/native/</PackagePath>
-          <Pack>true</Pack>
-      </Content>
-      <Content Include="..\..\build\nuget\win-x86\libblurgtext.dll" Condition="Exists('..\..\build\nuget\win-x86\libblurgtext.dll')">
-        <Link>runtimes\win-x86\native\libblurgtext.dll</Link>
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        <PackagePath>runtimes/win-x86/native/</PackagePath>
-        <Pack>true</Pack>
-      </Content>
-    </ItemGroup>
 </Project>
