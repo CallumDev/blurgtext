@@ -4,8 +4,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlurgText", "BlurgText\Blur
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlurgSample", "BlurgSample\BlurgSample.csproj", "{52582E3B-1EE2-458D-A3B5-83F6BEA0760E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlurgText.redist.osx", "BlurgText.redist.osx\BlurgText.redist.osx.csproj", "{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,18 +38,6 @@ Global
 		{52582E3B-1EE2-458D-A3B5-83F6BEA0760E}.Release|x64.Build.0 = Release|Any CPU
 		{52582E3B-1EE2-458D-A3B5-83F6BEA0760E}.Release|x86.ActiveCfg = Release|Any CPU
 		{52582E3B-1EE2-458D-A3B5-83F6BEA0760E}.Release|x86.Build.0 = Release|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Debug|x64.Build.0 = Debug|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Debug|x86.Build.0 = Debug|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Release|x64.ActiveCfg = Release|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Release|x64.Build.0 = Release|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Release|x86.ActiveCfg = Release|Any CPU
-		{3B2E6793-53AA-4BD3-90CB-AF30088E81CE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
