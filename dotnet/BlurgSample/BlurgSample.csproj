@@ -29,4 +29,27 @@
       </Content>
     </ItemGroup>
 
+    <!-- Native libraries -->
+    <ItemGroup>
+      <Content Include="..\..\build\nuget\linux-x64\libblurgtext.so" Condition="Exists('..\..\build\nuget\linux-x64\libblurgtext.so')">
+        <Link>runtimes\linux-x64\native\libblurgtext.so</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <Content Include="..\..\build\nuget\win-x64\libblurgtext.dll" Condition="Exists('..\..\build\nuget\win-x64\libblurgtext.dll')">
+          <Link>runtimes\win-x64\native\libblurgtext.dll</Link>
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <Content Include="..\..\build\nuget\win-x86\libblurgtext.dll" Condition="Exists('..\..\build\nuget\win-x86\libblurgtext.dll')">
+        <Link>runtimes\win-x86\native\libblurgtext.dll</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <Content Include="..\..\build\nuget\osx-arm64\libblurgtext.dylib" Condition="Exists('..\..\build\nuget\osx-arm64\libblurgtext.dylib')">
+        <Link>runtimes\osx-arm64\native\libblurgtext.dylib</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <Content Include="..\..\build\nuget\osx-x64\libblurgtext.dylib" Condition="Exists('..\..\build\nuget\osx-x64\libblurgtext.dylib')">
+        <Link>runtimes\osx-x64\native\libblurgtext.dylib</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
 </Project>

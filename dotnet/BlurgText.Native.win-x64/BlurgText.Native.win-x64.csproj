@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- This is just a dummy csproj for dotnet pack -->
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+    <NoBuild>true</NoBuild>
+    <Version>0.1.0$(VersionSuffix)</Version>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <NuspecFile>../pack.nuspec</NuspecFile>
+    <NuspecProperties>version=$(Version);rid=win-x64;dllname=libblurgtext.dll</NuspecProperties>
+  </PropertyGroup>
+
+</Project>
