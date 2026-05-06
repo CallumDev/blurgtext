@@ -41,5 +41,10 @@
             <Pack>true</Pack>
         </Content>
     </ItemGroup>
+    <ItemGroup>
+      <ProjectReference BuildReference="false" Include="..\BlurgText.Native.linux-x64\BlurgText.Native.linux-x64.csproj" />
+      <ProjectReference BuildReference="false" Include="..\BlurgText.Native.win-x64\BlurgText.Native.win-x64.csproj" />
+      <ProjectReference BuildReference="false" Include="..\BlurgText.Native.win-x86\BlurgText.Native.win-x86.csproj" />
+    </ItemGroup>
 
 </Project>
