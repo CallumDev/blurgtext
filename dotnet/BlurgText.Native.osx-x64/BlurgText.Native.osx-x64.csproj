@@ -8,7 +8,7 @@
     <Version>0.1.0$(VersionSuffix)</Version>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <NuspecFile>../pack.nuspec</NuspecFile>
-    <NuspecProperties>version=$(Version);rid=osx-x86;dllname=libblurgtext.dylib</NuspecProperties>
+    <NuspecProperties>version=$(Version);rid=osx-x64;dllname=libblurgtext.dylib</NuspecProperties>
   </PropertyGroup>
 
 </Project>
