@@ -5,6 +5,7 @@
         <Nullable>enable</Nullable>
         <Deterministic>true</Deterministic>
         <DeterministicSourcePaths>true</DeterministicSourcePaths>
+        <NugetBuild Condition=" '$(NugetBuild)' == '' ">False</NugetBuild>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -41,10 +42,9 @@
             <Pack>true</Pack>
         </Content>
     </ItemGroup>
-    <ItemGroup>
+    <ItemGroup Condition="'$(NugetBuild)' == 'True'">
       <ProjectReference BuildReference="false" Include="..\BlurgText.Native.linux-x64\BlurgText.Native.linux-x64.csproj" />
       <ProjectReference BuildReference="false" Include="..\BlurgText.Native.win-x64\BlurgText.Native.win-x64.csproj" />
       <ProjectReference BuildReference="false" Include="..\BlurgText.Native.win-x86\BlurgText.Native.win-x86.csproj" />
     </ItemGroup>
-
 </Project>
