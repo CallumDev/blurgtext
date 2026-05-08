@@ -33,6 +33,32 @@ DOWNLOADS_DIR=$(get_abs_filename build/nuget/sources)
 ARTIFACTS_DIR=$(get_abs_filename build/nuget)
 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -G Ninja -DBT_BUILD_DEMO=OFF -DFT_DOWNLOADS_DIR=$DOWNLOADS_DIR"
 
+check_linux() {
+  OS=`uname -s`
+  ARCH=`uname -m`
+  if [ "$OS" != "Linux" ]; then
+    echo "Unsupported host: $OS. Linux $1 cross-compile not supported"
+    exit 1
+  fi
+  if [ "$ARCH" != "$1" ]; then
+    echo "Unsupported host: $ARCH. Linux $1 cross-compile not supported."
+    exit 1
+  fi
+}
+
+check_mac() {
+  OS=`uname -s`
+  ARCH=`uname -m`
+  if [ "$OS" != "Darwin" ]; then
+    echo "Unsupported host: $OS. Mac $1 cross-compile not supported"
+    exit 1
+  fi
+  if [ "$ARCH" != "$1" ]; then
+    echo "Unsupported host: $ARCH. Mac $1 cross-compile not supported."
+    exit 1
+  fi
+}
+
 pack_native_nuget() {
   dotnet pack -p:VersionSuffix=$PACKAGESUFFIX -p:UseArtifactsOutput=true "-p:ArtifactsPath=$ARTIFACTS_DIR" "./dotnet/BlurgText.Native.${1}/BlurgText.Native.${1}.csproj"
 }
@@ -54,6 +80,7 @@ win_x64() {
 }
 
 linux_x64() {
+    check_linux x86_64
     mkdir -p build/nuget/linux-x64
     cd build/nuget/linux-x64
     cmake ../../.. $CMAKE_ARGS && ninja -v || { echo >&2 "Build failed"; exit 1; }
@@ -61,10 +88,28 @@ linux_x64() {
     pack_native_nuget linux-x64 || { echo >&2 "Build failed"; exit 1; }
 }
 
+osx_x64() {
+    check_mac x86_64
+    mkdir -p build/nuget/osx-x64
+    cd build/nuget/osx-x64
+    cmake ../../.. $CMAKE_ARGS && ninja -v || { echo >&2 "Build failed"; exit 1; }
+    cd ../../..
+    pack_native_nuget osx-x64 || { echo >&2 "Build failed"; exit 1; }
+}
+
+osx_arm64() {
+    check_mac arm64
+    mkdir -p build/nuget/osx-arm64
+    cd build/nuget/osx-arm64
+    cmake ../../.. $CMAKE_ARGS && ninja -v || { echo >&2 "Build failed"; exit 1; }
+    cd ../../..
+    pack_native_nuget osx-arm64 || { echo >&2 "Build failed"; exit 1; }
+}
+
 managed() {
   cd dotnet/BlurgText
-  dotnet build -p:UseArtifactsOutput=true "-p:ArtifactsPath=$ARTIFACTS_DIR" -p:VersionSuffix=$PACKAGESUFFIX -c Release || { echo >&2 "Build failed"; exit 1; }
-  dotnet pack -p:UseArtifactsOutput=true "-p:ArtifactsPath=$ARTIFACTS_DIR" -p:VersionSuffix=$PACKAGESUFFIX -c Release || { echo >&2 "Build failed"; exit 1; }
+  dotnet build -p:NugetBuild=True -p:UseArtifactsOutput=true "-p:ArtifactsPath=$ARTIFACTS_DIR" -p:VersionSuffix=$PACKAGESUFFIX -c Release || { echo >&2 "Build failed"; exit 1; }
+  dotnet pack -p:NugetBuild=True -p:UseArtifactsOutput=true "-p:ArtifactsPath=$ARTIFACTS_DIR" -p:VersionSuffix=$PACKAGESUFFIX -c Release || { echo >&2 "Build failed"; exit 1; }
   cd ../..
 }
 
