@@ -30,3 +30,31 @@ jobs:
       run: dotnet nuget push ./build/nuget/package/release/*.nupkg -k ${GITHUB_TOKEN} -s https://nuget.pkg.github.com/CallumDev/index.json --skip-duplicate --no-symbols
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  buildmac_arm:
+    runs-on: macos-15
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Build
+      run: PACKAGESUFFIX=-nightly-$GITHUB_RUN_NUMBER ./build-nuget.sh osx_arm64
+    - name: Publish Nuget to GitHub registry
+      run: dotnet nuget push ./build/nuget/package/release/*.nupkg -k ${GITHUB_TOKEN} -s https://nuget.pkg.github.com/CallumDev/index.json --skip-duplicate --no-symbols
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  buildmac_x64:
+    runs-on: macos-15-intel
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Build
+      run: PACKAGESUFFIX=-nightly-$GITHUB_RUN_NUMBER ./build-nuget.sh osx_x64
+    - name: Publish Nuget to GitHub registry
+      run: dotnet nuget push ./build/nuget/package/release/*.nupkg -k ${GITHUB_TOKEN} -s https://nuget.pkg.github.com/CallumDev/index.json --skip-duplicate --no-symbols
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
