@@ -29,6 +29,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # blurgtext needs lib prefix on all platforms
 set_target_properties(blurgtext PROPERTIES PREFIX "lib")
 
+# Apple specific libraries to be linked.
+if(APPLE)
+  target_link_libraries(blurgtext PRIVATE "-framework CoreFoundation" "-framework CoreText" "-framework CoreGraphics")
+endif()
+
 # Platform specific system font enablement
 if(BT_ENABLE_SYSTEMFONTS)
     if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")

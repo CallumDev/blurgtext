@@ -46,5 +46,7 @@
       <ProjectReference BuildReference="false" Include="..\BlurgText.Native.linux-x64\BlurgText.Native.linux-x64.csproj" />
       <ProjectReference BuildReference="false" Include="..\BlurgText.Native.win-x64\BlurgText.Native.win-x64.csproj" />
       <ProjectReference BuildReference="false" Include="..\BlurgText.Native.win-x86\BlurgText.Native.win-x86.csproj" />
+      <ProjectReference BuildReference="false" Include="..\BlurgText.Native.osx-x64\BlurgText.Native.osx-x64.csproj" />
+      <ProjectReference BuildReference="false" Include="..\BlurgText.Native.osx-arm64\BlurgText.Native.osx-arm64.csproj" />
     </ItemGroup>
 </Project>

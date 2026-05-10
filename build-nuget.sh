@@ -113,7 +113,7 @@ managed() {
   cd ../..
 }
 
-KNOWN_TARGETS=(win_x86 win_x64 linux_x64 managed)
+KNOWN_TARGETS=(win_x86 win_x64 linux_x64 osx_arm64 osx_x64 managed)
 
 is_known_target() {
   local v="$1"

@@ -35,6 +35,9 @@ public class Program : GameWindow
     protected override void OnLoad()
     {
         base.OnLoad();
+
+        Console.WriteLine(GL.GetString(StringName.Version));
+
         renderer = new Render2D();
         blurg = new Blurg(renderer.CreateTexture, renderer.UpdateTexture);
         blurg.EnableSystemFonts();
@@ -105,6 +108,10 @@ public class Program : GameWindow
         var settings = NativeWindowSettings.Default;
         settings.ClientSize = new Vector2i(1024, 768);
         settings.Vsync = VSyncMode.On;
+        settings.API = ContextAPI.OpenGL;
+        settings.APIVersion = new Version(2,1);
+        settings.Flags = ContextFlags.Default;
+        settings.Profile = ContextProfile.Any;
         using var p = new Program(GameWindowSettings.Default, settings);
         p.Run();
     }
