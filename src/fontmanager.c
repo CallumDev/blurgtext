@@ -268,6 +268,7 @@ BLURGAPI blurg_font_t *blurg_font_add_memory(blurg_t *blurg, char *data, int len
         memcpy(fontData->data, data, len);
         fontData->external = 0;
     } else {
+        fontData->data = data;
         fontData->external = 1;
     }
 
