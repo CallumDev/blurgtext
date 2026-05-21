@@ -1,5 +1,6 @@
 #if BT_ENABLE_DIRECTWRITE
 #include "blurgtext_internal.h"
+#include "util.h"
 #include <dwrite.h>
 #include <stdio.h>
 // Helpful tools for dealing with the deluge of COM objects required to use DWrite
@@ -85,20 +86,6 @@ static blurg_font_t* FromDWriteFace(blurg_t* blurg, IDWriteFontFace* face)
     }
     stream.get()->ReleaseFileFragment(fragContext);
     return bfnt;
-}
-
-uint32_t utf32_to_utf16(uint32_t utf32, uint16_t *utf16)
-{
-    if (utf32 < 0xD800 || (utf32 > 0xDFFF && utf32 < 0x10000))
-    {
-        utf16[0] = (uint16_t)utf32;
-        utf16[1] = 0;
-        return 1;
-    }
-    utf32 -= 0x010000;
-    utf16[0] = (uint16_t)(((0xFFC00 & utf32) >> 10) + 0xD800);
-    utf16[1] = (uint16_t)(((0x3FF & utf32) >> 00) + 0xDC00);
-    return 2;
 }
 
 class FallbackRenderer final : public IDWriteTextRenderer
