@@ -310,14 +310,74 @@ static void get_font_traits(CTFontRef font, int *weight, int *italic)
     *italic = (CTFontGetSymbolicTraits(font) & kCTFontItalicTrait) != 0;
 }
 
+static uint32_t fnv1a_str(uint32_t hval, char *str)
+{
+    unsigned char *s = (unsigned char *)str;	/* unsigned string */
+    while (*s) {
+        hval ^= (uint32_t)*s++;
+	    hval *= 0x01000193;
+    }
+    return hval;
+}
+
+static CFStringRef font_keys[] = {
+    kCTFontCopyrightNameKey,
+    kCTFontFamilyNameKey,
+    kCTFontSubFamilyNameKey,
+    kCTFontStyleNameKey,
+    kCTFontUniqueNameKey,
+    kCTFontFullNameKey,
+    kCTFontVersionNameKey,
+    kCTFontPostScriptNameKey
+};
+static int font_key_count = sizeof(font_keys) / sizeof(font_keys[0]);
+
+typedef struct _ctfont_entry {
+    uint32_t hash;
+    blurg_font_t *font;
+} ctfont_entry;
+
+int ctfont_entry_compare(const void *a, const void* b, void *udata)
+{
+    const ctfont_entry *ga = (const ctfont_entry *)a;
+    const ctfont_entry *gb = (const ctfont_entry *)b;
+    return (int)(ga->hash - gb->hash);
+}
+
+uint64_t ctfont_entry_hash(const void *item, uint64_t seed0, uint64_t seed1)
+{
+    const ctfont_entry* e  = (const ctfont_entry *)item;
+    return hashmap_sip(&e->hash, sizeof(uint32_t), seed0, seed1);
+}
+
 static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold)
 {
     CFRetain(fontPtr);
     CFObj<CTFontRef> font(fontPtr);
+    // hash together the font strings
+    uint32_t hval = 0x811c9dc5;
+    for(int i = 0; i < font_key_count; ++i) 
+    {
+        CFObj<CFStringRef> value(CTFontCopyName(font, font_keys[i]));
+        if(value) 
+        {
+            hval = fnv1a_str(hval, (char*)CFStringGetCStringPtr(value, kCFStringEncodingUTF8));
+        }
+    }
+    // return if cached
+    struct hashmap *table = (struct hashmap*)blurg->sysFontData;
+    ctfont_entry nullEntry = { .hash = hval, .font = NULL };
+    const ctfont_entry *result = (const ctfont_entry *)hashmap_get(table, &nullEntry);
+    if(result)
+    {
+        return result->font;
+    }
+    // create cache
     CGFontRef cgfont = CTFontCopyGraphicsFont(font, NULL);
 
     if(!cgfont) 
     {
+        hashmap_set(table, &nullEntry);
         return NULL;
     }
 
@@ -326,6 +386,7 @@ static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold
     CGFontRelease(cgfont);
     if(!fontData) 
     {
+        hashmap_set(table, &nullEntry);
         return NULL;
     }
 
@@ -333,6 +394,12 @@ static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold
     free(fontData);
     if(!resolved) 
     {
+        CFObj<CFStringRef> value(CTFontCopyName(font, kCTFontFullNameKey));
+        if(value) 
+        {
+            printf("Failed to load font data for %s\n", (char*)CFStringGetCStringPtr(value, kCFStringEncodingUTF8));
+        }
+        hashmap_set(table, &nullEntry);
         return NULL;
     }
 
@@ -346,6 +413,8 @@ static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold
         blurg_font_rehash(resolved);
     }
     // todo: italic test
+    ctfont_entry set_entry = { .hash = hval, .font = resolved };
+    hashmap_set(table, &set_entry);
     return resolved;
 }
 
@@ -555,14 +624,16 @@ BLURGAPI int blurg_enable_system_fonts(blurg_t *blurg)
     {
         return 1;
     }
-    blurg->sysFontData = (void*)1;
+    blurg->sysFontData = hashmap_new(sizeof(ctfont_entry), 0, 0, 0, ctfont_entry_hash, ctfont_entry_compare, NULL, NULL);
     return 1;
 }
 
 void blurg_sysfonts_destroy(blurg_t *blurg)
 {
+    if(blurg->sysFontData) 
+    {
+        hashmap_free((struct hashmap*)blurg->sysFontData);
+    }
     blurg->sysFontData = NULL;
 }
-
-
 #endif
