@@ -359,9 +359,16 @@ static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold
     for(int i = 0; i < font_key_count; ++i) 
     {
         CFObj<CFStringRef> value(CTFontCopyName(font, font_keys[i]));
-        if(value) 
+        if(value)
         {
-            hval = fnv1a_str(hval, (char*)CFStringGetCStringPtr(value, kCFStringEncodingUTF8));
+            // CFStringGetCStringPtr returns NULL for strings not stored as UTF-8.
+            // System font names are UTF-16 so we have to copy.
+            const char *cstr = CFStringGetCStringPtr(value, kCFStringEncodingUTF8);
+            char buf[256];
+            if(!cstr && CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8))
+                cstr = buf;
+            if(cstr)
+                hval = fnv1a_str(hval, (char*)cstr);
         }
     }
     // return if cached
@@ -397,7 +404,10 @@ static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold
         CFObj<CFStringRef> value(CTFontCopyName(font, kCTFontFullNameKey));
         if(value) 
         {
-            printf("Failed to load font data for %s\n", (char*)CFStringGetCStringPtr(value, kCFStringEncodingUTF8));
+            const char *cstr = CFStringGetCStringPtr(value, kCFStringEncodingUTF8);
+            char buf[256];
+            if(!cstr && CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8)) cstr = buf;
+            printf("Failed to load font data for %s\n", cstr ? cstr : "(unknown)");
         }
         hashmap_set(table, &nullEntry);
         return NULL;
