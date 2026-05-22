@@ -591,12 +591,33 @@ blurg_font_t *blurg_sysfonts_query(
     }
 
     CFObj<CTFontDescriptorRef> descriptor(select_descriptor(family_name, weight, italic));
-    CFObj<CTFontRef> base_font(CTFontCreateWithFontDescriptor(descriptor, 12.0, NULL));
+    CTFontRef raw_font = NULL;
+    if(descriptor)
+        raw_font = CTFontCreateWithFontDescriptor(descriptor, 12.0, NULL);
 
-    if(!base_font) 
+    // CoreText doesn't substitute when the family is missing; Fontconfig and
+    // DirectWrite do. Use the system font and copy bold/italic if asked.
+    if(!raw_font)
     {
-        return NULL;
+        CTFontRef ui = CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, 12.0, NULL);
+        if(ui)
+        {
+            CTFontSymbolicTraits want = 0;
+            if(weight >= BLURG_WEIGHT_BOLD) want |= kCTFontBoldTrait;
+            if(italic) want |= kCTFontItalicTrait;
+            if(want)
+            {
+                CTFontRef styled = CTFontCreateCopyWithSymbolicTraits(ui, 12.0, NULL, want, want);
+                if(styled) { CFRelease(ui); raw_font = styled; }
+                else raw_font = ui;
+            }
+            else raw_font = ui;
+        }
     }
+    CFObj<CTFontRef> base_font(raw_font);
+
+    if(!base_font)
+        return NULL;
 
     if(character) {
         uint16_t utf16[2];
