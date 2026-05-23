@@ -354,6 +354,7 @@ static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold
 {
     CFRetain(fontPtr);
     CFObj<CTFontRef> font(fontPtr);
+    char cfstr_buf[256];
     // hash together the font strings
     uint32_t hval = 0x811c9dc5;
     for(int i = 0; i < font_key_count; ++i) 
@@ -361,7 +362,8 @@ static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold
         CFObj<CFStringRef> value(CTFontCopyName(font, font_keys[i]));
         if(value) 
         {
-            hval = fnv1a_str(hval, (char*)CFStringGetCStringPtr(value, kCFStringEncodingUTF8));
+            CFStringGetCString(value, cfstr_buf, sizeof(cfstr_buf), kCFStringEncodingUTF8);
+            hval = fnv1a_str(hval, cfstr_buf);
         }
     }
     // return if cached
@@ -397,7 +399,8 @@ static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold
         CFObj<CFStringRef> value(CTFontCopyName(font, kCTFontFullNameKey));
         if(value) 
         {
-            printf("Failed to load font data for %s\n", (char*)CFStringGetCStringPtr(value, kCFStringEncodingUTF8));
+            CFStringGetCString(value, cfstr_buf, sizeof(cfstr_buf), kCFStringEncodingUTF8);
+            printf("Failed to load font data for %s\n", cfstr_buf);
         }
         hashmap_set(table, &nullEntry);
         return NULL;
