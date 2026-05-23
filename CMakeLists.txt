@@ -31,7 +31,10 @@ set_target_properties(blurgtext PROPERTIES PREFIX "lib")
 
 # Apple specific libraries to be linked.
 if(APPLE)
-  target_link_libraries(blurgtext PRIVATE "-framework CoreFoundation" "-framework CoreText" "-framework CoreGraphics")
+    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+    find_library(CORETEXT_FRAMEWORK CoreText REQUIRED)
+    find_library(COREGRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
+    target_link_libraries(blurgtext PRIVATE ${COREFOUNDATION_FRAMEWORK} ${CORETEXT_FRAMEWORK} ${COREGRAPHICS_FRAMEWORK})
 endif()
 
 # Platform specific system font enablement
