@@ -268,6 +268,7 @@ BLURGAPI blurg_font_t *blurg_font_add_memory(blurg_t *blurg, char *data, int len
         memcpy(fontData->data, data, len);
         fontData->external = 0;
     } else {
+        fontData->data = data;
         fontData->external = 1;
     }
 
@@ -340,6 +341,8 @@ BLURGAPI blurg_font_t *blurg_font_query(blurg_t *blurg, const char *familyName, 
             font_entry fe = *result;
             uint32_t k = (italic ? (1U << 31) : 0) | (uint32_t)weight;
             font_entry_set_style(fm, &fe, 0, k, sysf);
+            hashmap_set(fm->fontTable, &fe);
+            return sysf;
         } else {
             return fnt;
         }

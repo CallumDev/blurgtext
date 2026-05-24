@@ -12,7 +12,7 @@ static uint32_t fnv1a_str(char *str)
     uint32_t hval = 0x811c9dc5;
     while (*s) {
         hval ^= (uint32_t)*s++;
-	    hval += (hval<<1) + (hval<<4) + (hval<<7) + (hval<<8) + (hval<<24);
+	    hval *= 0x01000193;
     }
     return hval;
 }
@@ -22,13 +22,13 @@ static uint32_t fnv1a_combined(uint32_t faceHash, uint32_t size)
 {
     uint32_t hval = faceHash;
     hval ^= (size & 0xFF);
-    hval += (hval<<1) + (hval<<4) + (hval<<7) + (hval<<8) + (hval<<24);
+    hval *= 0x01000193;    
     hval ^= ((size >> 8) & 0xFF);
-	hval += (hval<<1) + (hval<<4) + (hval<<7) + (hval<<8) + (hval<<24);
+	hval *= 0x01000193;
     hval ^= ((size >> 16) & 0xFF);
-	hval += (hval<<1) + (hval<<4) + (hval<<7) + (hval<<8) + (hval<<24);
+	hval *= 0x01000193;
     hval ^= ((size >> 24) & 0xFF);
-	hval += (hval<<1) + (hval<<4) + (hval<<7) + (hval<<8) + (hval<<24);
+	hval *= 0x01000193;
     return hval;
 }
 

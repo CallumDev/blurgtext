@@ -22,6 +22,7 @@ add_library(blurgtext SHARED
     src/util.c
     src/sysfonts_fontconfig.c
     src/sysfonts_directwrite.cpp
+    src/sysfonts_coretext.cpp
 )
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -43,7 +44,9 @@ if(BT_ENABLE_SYSTEMFONTS)
         #enable directwrite (both mingw and MSVC)
         target_compile_definitions(blurgtext PRIVATE -DBT_ENABLE_DIRECTWRITE=1)
         target_link_libraries(blurgtext PRIVATE gdi32 dwrite)
-    elseif(UNIX AND NOT APPLE)
+    elseif(APPLE)
+        target_compile_definitions(blurgtext PRIVATE -DBT_ENABLE_CORETEXT=1)
+    elseif(UNIX)
         if(BT_BUILD_FTHB)
             message(FATAL_ERROR "blurgtext: Fontconfig platforms cannot have BT_ENABLE_SYSTEMFONTS and BT_BUILD_FTHB at the same time")
         endif()
