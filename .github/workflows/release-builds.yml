@@ -1,0 +1,61 @@
+name: Release Build
+
+concurrency:
+  group: relbuilds
+  cancel-in-progress: true
+  
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.x
+    - name: Install native dependencies
+      run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev g++-mingw-w64-x86-64 g++-mingw-w64-i686 cmake ninja-build
+    - name: Build
+      run: ./build-nuget.sh win_x86 win_x64 linux_x64 managed
+    - name: Archive packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: release
+        path: build/nuget/package/release
+  buildmac_arm:
+    runs-on: macos-15
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - name: Build
+      run: ./build-nuget.sh osx_arm64
+    - name: Archive packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-macarm
+        path: build/nuget/package/release
+  buildmac_x64:
+    runs-on: macos-15-intel
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+    - name: Build
+      run: ./build-nuget.sh osx_x64
+    - name: Archive packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-macintel
+        path: build/nuget/package/release
