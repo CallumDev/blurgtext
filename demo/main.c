@@ -1,7 +1,13 @@
 #include <blurgtext.h>
 #include <stdio.h>
 
+// Homebrew seems to include the SDL2 folder itself rather than standard include.
+#ifdef __APPLE__
+#include <SDL.h>
+#else
 #include <SDL2/SDL.h>
+#endif
+
 #include <glad/glad.h>
 
 typedef struct {
@@ -35,6 +41,14 @@ static void tupdate(blurg_texture_t *texture, void *buffer, int x, int y, int wi
 {
     uint32_t tex = (uint32_t)(uintptr_t)texture->userdata;
     glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, GL_BGRA, GL_UNSIGNED_BYTE, buffer);
+}
+
+static void nullallocate(blurg_texture_t *texture, int width, int height)
+{
+}
+
+static void nullupdate(blurg_texture_t *texture, void *buffer, int x, int y, int width, int height)
+{
 }
 
 typedef struct vertex {
@@ -177,8 +191,51 @@ static void shaderSource(uint32_t id, const char *a, const char *b)
     glShaderSource(id, 2, sources, lens);
 }
 
+int query_demo(int argc, char* argv[])
+{
+    if(argc < 3) 
+    {
+        printf("Usage: %s query <family> [weight]\n", argv[0]);
+        return 0;
+    }
+    blurg_t *blurg = blurg_create(nullallocate, nullupdate);
+    if(!blurg_enable_system_fonts(blurg)) 
+    {
+        printf("System fonts not available\n");
+        return 1;
+    } 
+    else 
+    {
+        int weight = BLURG_WEIGHT_REGULAR;
+        if(argc > 3) {
+            if(strcmp(argv[3], "bold") == 0)
+            {
+                weight = BLURG_WEIGHT_BOLD;
+            }
+            else
+            {
+                weight = atoi(argv[3]);
+            }
+        }
+        blurg_font_t *font = blurg_font_query(blurg, argv[2], weight, 0);
+        if(font) 
+        {
+            printf("Found font: %s (%d)\n", blurg_font_get_family(font), blurg_font_get_weight(font));
+        } 
+        else 
+        {
+            printf("blurg_font_query returned NULL\n");
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char* argv[])
 {
+    if(argc > 1 && strcmp(argv[1], "query") == 0) {
+        return query_demo(argc, argv);
+    }
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
         printf("SDL Error: %s\n", SDL_GetError());

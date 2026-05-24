@@ -424,19 +424,6 @@ static blurg_font_t *load_ctfont(blurg_t *blurg, CTFontRef fontPtr, int wantBold
 // Matching
 
 
-static int family_matches(CTFontDescriptorRef descriptor, CFStringRef family)
-{
-    CFObj<CFStringRef> matched_family(str_from_type(CTFontDescriptorCopyAttribute(descriptor, kCTFontFamilyNameAttribute)));
-    int matches = 0;
-
-    if(matched_family) 
-    {
-        matches = CFStringCompare(matched_family,family,kCFCompareCaseInsensitive);
-    }
-
-    return matches == kCFCompareEqualTo;
-}
-
 static void get_descriptor_traits(
     CTFontDescriptorRef descriptor,
     double *weight,
@@ -461,6 +448,44 @@ static void get_descriptor_traits(
         }
     }
 }
+
+static CTFontDescriptorRef find_best_match(
+    CFArrayRef matches, 
+    double ct_weight, 
+    int italic)
+{
+    if(!matches)
+    {
+        return NULL;
+    }
+    CTFontDescriptorRef best = NULL;
+    double best_score = HUGE_VAL;
+    CFIndex match_count = CFArrayGetCount(matches);
+    for(CFIndex i = 0; i < match_count; ++i)
+    {
+        CTFontDescriptorRef candidate = (CTFontDescriptorRef)CFArrayGetValueAtIndex(matches, i);
+        if(!candidate)
+        {
+            continue;
+        }
+
+        double candidate_weight = 0.0;
+        int candidate_italic = 0;
+        get_descriptor_traits(candidate, &candidate_weight, &candidate_italic);
+
+        double score =
+            fabs(candidate_weight - ct_weight) +
+            (candidate_italic == italic ? 0.0 : 2.0);
+
+        if(score < best_score) 
+        {
+            best_score = score;
+            best = candidate;
+        }
+    }
+    return best;
+}
+
 
 static CTFontDescriptorRef select_descriptor(
     const char *family_name,
@@ -529,6 +554,7 @@ static CTFontDescriptorRef select_descriptor(
         return NULL;
     }
 
+    // Query for exact match
     CFObj<CTFontDescriptorRef> query(CTFontDescriptorCreateWithAttributes(attributes));
     if(!query) 
     {
@@ -538,37 +564,58 @@ static CTFontDescriptorRef select_descriptor(
     CTFontDescriptorRef best = NULL;
 
     CFObj<CFArrayRef> matches(CTFontDescriptorCreateMatchingFontDescriptors(query, NULL));
-    if(matches) {
-        double best_score = HUGE_VAL;
-        CFIndex match_count = CFArrayGetCount(matches);
-
-        for(CFIndex i = 0; i < match_count; ++i) {
-            CTFontDescriptorRef candidate = (CTFontDescriptorRef)CFArrayGetValueAtIndex(matches, i);
-
-            if(!candidate || !family_matches(candidate, family)) {
-                continue;
-            }
-
-            double candidate_weight = 0.0;
-            int candidate_italic = 0;
-            get_descriptor_traits(candidate, &candidate_weight, &candidate_italic);
-
-            double score =
-                fabs(candidate_weight - ct_weight) +
-                (candidate_italic == italic ? 0.0 : 2.0);
-
-            if(score < best_score) {
-                best_score = score;
-                best = candidate;
-            }
-        }
-    }
+    best = find_best_match(matches, ct_weight, italic);
 
     if(best) 
     {
         CFRetain(best);
+        return best;
     }
-    return best;
+
+    // Query using family only
+    CFObj<CFDictionaryRef> family_only(CFDictionaryCreate(
+        kCFAllocatorDefault,
+        &attribute_keys[0],
+        &attribute_values[0],
+        1,
+        &kCFTypeDictionaryKeyCallBacks,
+        &kCFTypeDictionaryValueCallBacks
+    ));
+    CFObj<CTFontDescriptorRef> family_query(CTFontDescriptorCreateWithAttributes(family_only));
+
+    CFObj<CFArrayRef> family_matches(CTFontDescriptorCreateMatchingFontDescriptors(family_query, NULL));
+    best = find_best_match(family_matches, ct_weight, italic);
+
+    if(best) 
+    {
+        CFRetain(best);
+        return best;
+    }
+
+    // Run a query against Helvetica if we can't find a font by family
+    const void *fallback_values = {
+        CFSTR("Helvetica")
+    };
+
+    CFObj<CFDictionaryRef> fallback_attributes(CFDictionaryCreate(
+        kCFAllocatorDefault,
+        &attribute_keys[0],
+        &fallback_values,
+        1,
+        &kCFTypeDictionaryKeyCallBacks,
+        &kCFTypeDictionaryValueCallBacks
+    ));
+
+    CFObj<CTFontDescriptorRef> fallback_query(CTFontDescriptorCreateWithAttributes(fallback_attributes));
+    CFObj<CFArrayRef> fallback_matches(CTFontDescriptorCreateMatchingFontDescriptors(fallback_query, NULL));
+    best = find_best_match(fallback_matches, ct_weight, italic);
+    if(best) 
+    {
+        CFRetain(best);
+        return best;
+    }
+
+    return NULL; 
 }
 
 blurg_font_t *blurg_sysfonts_query(
@@ -619,10 +666,8 @@ blurg_font_t *blurg_sysfonts_query(
     return load_ctfont(blurg, base_font, weight >= BLURG_WEIGHT_BOLD);
 }
 
-
 BLURGAPI int blurg_enable_system_fonts(blurg_t *blurg)
 {
-    /* CoreText requires no saved data */
     if(blurg->sysFontData) 
     {
         return 1;
