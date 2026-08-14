@@ -74,7 +74,7 @@ void glyphatlas_get(blurg_t *blurg, blurg_font_t *font, uint32_t index, blurg_gl
     }
 
     FT_Face face = font->face;
-    int loadFlags = FT_LOAD_TARGET_LIGHT;
+    int loadFlags = FT_LOAD_TARGET_NORMAL;
     if(FT_HAS_COLOR(face)) {
         loadFlags |= FT_LOAD_COLOR;
     }
