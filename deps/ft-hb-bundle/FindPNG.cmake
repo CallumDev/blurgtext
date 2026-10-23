@@ -2,4 +2,9 @@ SET(PNG_INCLUDE_DIRS "")
 SET(PNG_LIBRARIES "")
 SET(PNG_DEFINITIONS "")
 SET(PNG_FOUND TRUE)
+
+if(NOT TARGET PNG::PNG)
+    add_library(PNG::PNG INTERFACE IMPORTED)
+endif()
+
 add_custom_target(PNG)

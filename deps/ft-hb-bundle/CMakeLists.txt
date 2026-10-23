@@ -8,10 +8,10 @@ endif()
 
 option(FT_DOWNLOADS_DIR "Folder to contain downloaded source files" "${CMAKE_CURRENT_BINARY_DIR}/sources")
 
-SET(FREETYPE_URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.xz" "https://downloads.sourceforge.net/project/freetype/freetype2/2.13.2/freetype-2.13.2.tar.xz")
-SET(FREETYPE_HASH "SHA256=12991c4e55c506dd7f9b765933e62fd2be2e06d421505d7950a132e4f1bb484d")
-SET(HARFBUZZ_URL "https://github.com/harfbuzz/harfbuzz/releases/download/9.0.0/harfbuzz-9.0.0.tar.xz")
-SET(HARFBUZZ_HASH "SHA256=a41b272ceeb920c57263ec851604542d9ec85ee3030506d94662067c7b6ab89e")
+SET(FREETYPE_URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.15.0.tar.xz" "https://downloads.sourceforge.net/project/freetype/freetype2/2.15.0/freetype-2.15.0.tar.xz")
+SET(FREETYPE_HASH "SHA256=93cd47eb719c325107f2d3cf087d06299e944c3b48a40b55537302304dea1dd5")
+SET(HARFBUZZ_URL "https://github.com/harfbuzz/harfbuzz/releases/download/15.0.0/harfbuzz-15.0.0.tar.xz")
+SET(HARFBUZZ_HASH "SHA256=968536e9abd782f07f7954044c0c4020199fcdd39b41d221ec42d2a3be4a44df")
 
 set(FT_PATCH
 ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/stb_image.h <SOURCE_DIR>/src/sfnt &&
