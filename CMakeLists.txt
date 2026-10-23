@@ -73,9 +73,17 @@ add_subdirectory(deps/plutosvg)
 target_link_libraries(blurgtext PRIVATE plutosvg)
 
 # libunibreak
-file(GLOB_RECURSE UNIBREAK_SOURCES RELATIVE ${CMAKE_CURRENT_LIST_DIR} "deps/libunibreak/src/*.c")
+set(UNIBREAK_DIR "deps/libunibreak/src")
 add_library(unibreak STATIC
-    ${UNIBREAK_SOURCES}
+    ${UNIBREAK_DIR}/linebreak.c
+    ${UNIBREAK_DIR}/linebreakdata.c
+    ${UNIBREAK_DIR}/linebreakdef.c
+    ${UNIBREAK_DIR}/wordbreak.c
+    ${UNIBREAK_DIR}/graphemebreak.c
+    ${UNIBREAK_DIR}/eastasianwidthdef.c
+    ${UNIBREAK_DIR}/emojidef.c
+    ${UNIBREAK_DIR}/unibreakbase.c
+    ${UNIBREAK_DIR}/unibreakdef.c
 )
 target_include_directories(unibreak PUBLIC "deps/libunibreak/src")
 set_target_properties(unibreak PROPERTIES C_VISIBILITY_PRESET hidden)
@@ -99,7 +107,7 @@ add_library(sheenbidi STATIC
 )
 set_property(TARGET sheenbidi PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(sheenbidi PRIVATE -DSB_CONFIG_UNITY)
-target_include_directories(sheenbidi PUBLIC deps/SheenBidi/Headers)
+target_include_directories(sheenbidi PUBLIC deps/SheenBidi/Headers deps/SheenBidi/Source deps/SheenBidi/Headers/SheenBidi)
 target_compile_definitions(raqm PRIVATE -DRAQM_SHEENBIDI)
 target_include_directories(raqm PUBLIC "${CMAKE_CURRENT_BINARY_DIR}" "deps/libraqm/src")
 
