@@ -370,7 +370,7 @@ int main(int argc, char* argv[])
     // testing emoji font
     drawString(blurg, font, "SVG EmojiOne Test", 400, 300);
     drawString(blurg, emojiFont, "\xF0\x9F\x90\x88 \xF0\x9F\xA5\x92", 400, 330);
-
+    drawString(blurg, font, "CJK Fallback (System): 成就感", 400, 360);
     //formatted
     blurg_style_span_t spans[5];
     memset(spans, 0, sizeof(blurg_style_span_t) * 5);
