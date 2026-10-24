@@ -198,7 +198,7 @@ static unsigned char *ttf_from_cgfont(CGFontRef fontPtr, size_t *length)
 
     CFObj<CGFontRef> font(fontPtr);
  
-    CFArrayRef tags = CGFontCopyTableTags(font);
+    CFObj<CFArrayRef> tags(CGFontCopyTableTags(font));
     int tableCount = CFArrayGetCount(tags);
 
     size_t *tableSizes = (size_t*)malloc(sizeof(size_t) * tableCount);
@@ -206,15 +206,18 @@ static unsigned char *ttf_from_cgfont(CGFontRef fontPtr, size_t *length)
     
     bool containsCFFTable = false;
     
-    size_t totalSize = sizeof(FontHeader) + sizeof(TableEntry) * tableCount;
-    
+    size_t headerSize = sizeof(FontHeader) + sizeof(TableEntry) * (size_t)tableCount;
+    // first table alignment to 8 bytes
+    headerSize = (headerSize + 7) & ~(size_t)7;
+    size_t totalSize = headerSize;
+
     for (int index = 0; index < tableCount; index++) 
     {
         //get size
         size_t tableSize = 0;
         uint32_t aTag = (uint32_t)(uintptr_t)CFArrayGetValueAtIndex(tags, index);
        
- 		if (aTag == 'CFF ' && !containsCFFTable) 
+ 		if (aTag == 'CFF ')
         {
             containsCFFTable = true;
         }
@@ -224,7 +227,7 @@ static unsigned char *ttf_from_cgfont(CGFontRef fontPtr, size_t *length)
             tableSize = CFDataGetLength(tableDataRef);
             CFRelease(tableDataRef);
         }
-        totalSize += (tableSize + 3) & ~3;
+        totalSize += (tableSize + 7) & ~(size_t)7;
         
         tableSizes[index] = tableSize;
     }
@@ -263,7 +266,7 @@ static unsigned char *ttf_from_cgfont(CGFontRef fontPtr, size_t *length)
 
     // write tables
     TableEntry* entry = (TableEntry*)dataPtr;
-    dataPtr += sizeof(TableEntry) * tableCount;
+    dataPtr = dataStart + headerSize;
     
     for (int index = 0; index < tableCount; ++index) 
     {
@@ -279,7 +282,7 @@ static unsigned char *ttf_from_cgfont(CGFontRef fontPtr, size_t *length)
         uint32_t offset = dataPtr - dataStart;
         entry->fOffset = CFSwapInt32HostToBig((uint32_t)offset);
         entry->fLength = CFSwapInt32HostToBig((uint32_t)tableSize);
-        dataPtr += (tableSize + 3) & ~3;
+        dataPtr += (tableSize + 7) & ~7;
         entry++;
         CFRelease(tableDataRef);
     }
