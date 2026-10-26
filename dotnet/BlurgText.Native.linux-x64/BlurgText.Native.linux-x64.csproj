@@ -5,7 +5,7 @@
   <PropertyGroup>
     <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
     <NoBuild>true</NoBuild>
-    <Version>0.2.0$(VersionSuffix)</Version>
+    <Version>0.2.1$(VersionSuffix)</Version>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <NuspecFile>../pack.nuspec</NuspecFile>
     <NuspecProperties>version=$(Version);rid=linux-x64;dllname=libblurgtext.so</NuspecProperties>

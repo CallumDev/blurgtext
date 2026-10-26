@@ -336,9 +336,10 @@ BLURGAPI blurg_font_t *blurg_font_query(blurg_t *blurg, const char *familyName, 
         return fnt;
     } 
     else if (result->isSystemFont) {
+        /* dereference before anything can modify hashmap again */
+        font_entry fe = *result;
         blurg_font_t *sysf = blurg_sysfonts_query(blurg, familyName, weight, italic, 0);
         if(sysf) {
-            font_entry fe = *result;
             uint32_t k = (italic ? (1U << 31) : 0) | (uint32_t)weight;
             font_entry_set_style(fm, &fe, 0, k, sysf);
             hashmap_set(fm->fontTable, &fe);

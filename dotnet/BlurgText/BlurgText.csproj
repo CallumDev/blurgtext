@@ -11,7 +11,7 @@
     <PropertyGroup>
         <!-- Nuget Properties. -->
         <PackageId>BlurgText</PackageId>
-        <Version>0.2.0$(VersionSuffix)</Version>
+        <Version>0.2.1$(VersionSuffix)</Version>
         <Authors>Callum McGing</Authors>
         <Description>A platform-independent text layout library</Description>
         <PackageProjectUrl>https://github.com/blurgtext/blurgtext</PackageProjectUrl>
